@@ -1,0 +1,221 @@
+import { useState, useEffect } from 'react';
+import LandingHero from './components/LandingHero';
+import RegisterForm from './components/RegisterForm';
+import Certificate from './components/Certificate';
+import Dashboard from './components/Dashboard';
+import AuthScreen from './components/AuthScreen';
+import type { MusicalWork, Page } from './types';
+import { getAuthMode, getCurrentUser, signIn, signOut, signUp, subscribeToAuthChanges, type AuthUser } from './lib/auth';
+import { createWork, listWorks, removeWork } from './lib/worksRepository';
+
+export default function App() {
+  const [page, setPage] = useState<Page>('landing');
+  const [works, setWorks] = useState<MusicalWork[]>([]);
+  const [selectedWork, setSelectedWork] = useState<MusicalWork | null>(null);
+  const [authUser, setAuthUser] = useState<AuthUser | null>(null);
+  const [authMode] = useState(getAuthMode());
+  const [authReady, setAuthReady] = useState(false);
+  const [worksLoading, setWorksLoading] = useState(false);
+  const [appError, setAppError] = useState('');
+  const [authTargetPage, setAuthTargetPage] = useState<'register' | 'dashboard'>('register');
+
+  useEffect(() => {
+    let mounted = true;
+
+    getCurrentUser()
+      .then((user) => {
+        if (!mounted) return;
+        setAuthUser(user);
+        setAuthReady(true);
+      })
+      .catch(() => {
+        if (!mounted) return;
+        setAuthReady(true);
+      });
+
+    const unsubscribe = subscribeToAuthChanges((user) => {
+      setAuthUser(user);
+    });
+
+    return () => {
+      mounted = false;
+      unsubscribe();
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!authUser) {
+      setWorks([]);
+      return;
+    }
+
+    let cancelled = false;
+    setWorksLoading(true);
+    setAppError('');
+
+    listWorks(authUser.id)
+      .then((data) => {
+        if (cancelled) return;
+        setWorks(data);
+      })
+      .catch((error) => {
+        if (cancelled) return;
+        setAppError(error instanceof Error ? error.message : 'Failed to load your works.');
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setWorksLoading(false);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [authUser]);
+
+  const navigateProtected = (target: 'register' | 'dashboard') => {
+    setAppError('');
+    if (!authUser) {
+      setAuthTargetPage(target);
+      setPage('auth');
+      return;
+    }
+    setPage(target);
+  };
+
+  const handleRegister = async (work: MusicalWork) => {
+    if (!authUser) {
+      setAuthTargetPage('register');
+      setPage('auth');
+      return;
+    }
+
+    setAppError('');
+    const savedWork = await createWork(authUser.id, work);
+    setWorks((prev) => [savedWork, ...prev]);
+    setSelectedWork(savedWork);
+    setPage('certificate');
+  };
+
+  const handleDelete = async (id: string) => {
+    if (!authUser) return;
+
+    setAppError('');
+    await removeWork(authUser.id, id);
+    setWorks((prev) => prev.filter((w) => w.id !== id));
+  };
+
+  const handleViewCertificate = (work: MusicalWork) => {
+    setSelectedWork(work);
+    setPage('certificate');
+  };
+
+  const handleAuthSuccess = (user: AuthUser) => {
+    setAuthUser(user);
+    setPage(authTargetPage);
+  };
+
+  const handleSignIn = async (email: string, password: string) => {
+    const user = await signIn(email, password);
+    handleAuthSuccess(user);
+  };
+
+  const handleSignUp = async (email: string, password: string) => {
+    const user = await signUp(email, password);
+    handleAuthSuccess(user);
+  };
+
+  const handleSignOut = async () => {
+    await signOut();
+    setAuthUser(null);
+    setSelectedWork(null);
+    setPage('landing');
+  };
+
+  // Scroll to top on page change
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }, [page]);
+
+  if (!authReady) {
+    return (
+      <div className="min-h-screen bg-neutral-950 text-white flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-14 h-14 rounded-full border-4 border-orange-500/20 border-t-orange-500 animate-spin mx-auto mb-4" />
+          <p className="text-white/60">Loading secure workspace...</p>
+        </div>
+      </div>
+    );
+  }
+
+  switch (page) {
+    case 'landing':
+      return (
+        <>
+          {appError && (
+            <div className="fixed top-4 left-1/2 -translate-x-1/2 z-[60] rounded-2xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-100">
+              {appError}
+            </div>
+          )}
+          <LandingHero
+            onNavigate={navigateProtected}
+            workCount={works.length}
+            isAuthenticated={Boolean(authUser)}
+            userEmail={authUser?.email ?? null}
+            authModeLabel={authMode === 'supabase' ? 'Secure cloud mode enabled' : 'Local demo mode'}
+            onAuthAction={() => {
+              setAuthTargetPage('dashboard');
+              setPage('auth');
+            }}
+            onSignOut={() => {
+              void handleSignOut();
+            }}
+          />
+        </>
+      );
+    case 'auth':
+      return (
+        <AuthScreen
+          authMode={authMode}
+          targetLabel={authTargetPage === 'register' ? 'new registrations' : 'your dashboard'}
+          onBack={() => setPage('landing')}
+          onSignIn={handleSignIn}
+          onSignUp={handleSignUp}
+        />
+      );
+    case 'register':
+      return (
+        <RegisterForm
+          onBack={() => setPage('landing')}
+          onRegister={handleRegister}
+        />
+      );
+    case 'certificate':
+      return selectedWork ? (
+        <Certificate
+          work={selectedWork}
+          onBack={() => setPage('landing')}
+          onDashboard={() => setPage('dashboard')}
+        />
+      ) : null;
+    case 'dashboard':
+      return (
+        <Dashboard
+          works={works}
+          isLoading={worksLoading}
+          userEmail={authUser?.email ?? null}
+          onBack={() => setPage('landing')}
+          onRegister={() => navigateProtected('register')}
+          onViewCertificate={handleViewCertificate}
+          onDelete={(id) => {
+            void handleDelete(id);
+          }}
+          onSignOut={() => {
+            void handleSignOut();
+          }}
+        />
+      );
+    default:
+      return null;
+  }
+}
