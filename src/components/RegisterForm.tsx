@@ -1,5 +1,17 @@
 import { useState, useRef } from 'react';
-import { Upload, Music, FileAudio, AlertCircle, Loader2, ArrowLeft, CheckCircle2, Sparkles, ShieldAlert, ExternalLink } from 'lucide-react';
+import {
+  Upload,
+  Music,
+  FileAudio,
+  FileText,
+  AlertCircle,
+  Loader2,
+  ArrowLeft,
+  CheckCircle2,
+  Sparkles,
+  ShieldAlert,
+  ExternalLink,
+} from 'lucide-react';
 import { generateFileHash, generateRegistrationNumber, generateDigitalFingerprint, formatFileSize } from '../utils/crypto';
 import type { MusicalWork } from '../types';
 
@@ -14,6 +26,20 @@ const GENRES = [
   'Afrobeats', 'K-Pop', 'Lo-fi', 'Ambient', 'Soundtrack/Score', 'Other'
 ];
 
+function extractLabeledValue(text: string, label: string): string {
+  const escapedLabel = label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const match = text.match(new RegExp(`^${escapedLabel}:\\s*(.+)$`, 'im'));
+  return match?.[1]?.trim() ?? '';
+}
+
+function extractSection(text: string, headingPattern: string): string {
+  const expression = new RegExp(
+    `(?:^|\\n)${headingPattern}:\\s*\\n(?:-+\\s*\\n)?([\\s\\S]*?)(?=\\n[A-Z][A-Z0-9 /&()_-]{3,}:\\s*\\n|\\n={8,}|$)`,
+    'i',
+  );
+  return text.match(expression)?.[1]?.trim() ?? '';
+}
+
 export default function RegisterForm({ onBack, onRegister }: Props) {
   const [title, setTitle] = useState('');
   const [artist, setArtist] = useState('');
@@ -23,6 +49,9 @@ export default function RegisterForm({ onBack, onRegister }: Props) {
   const [lyrics, setLyrics] = useState('');
   const [lyricsFileName, setLyricsFileName] = useState('');
   const [isLyricsDragging, setIsLyricsDragging] = useState(false);
+  const [masterSheetFileName, setMasterSheetFileName] = useState('');
+  const [masterSheetMessage, setMasterSheetMessage] = useState('');
+  const [isMasterSheetDragging, setIsMasterSheetDragging] = useState(false);
   const [dateCreated, setDateCreated] = useState('');
   const [file, setFile] = useState<File | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -30,6 +59,7 @@ export default function RegisterForm({ onBack, onRegister }: Props) {
   const [error, setError] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
   const lyricsInputRef = useRef<HTMLInputElement>(null);
+  const masterSheetInputRef = useRef<HTMLInputElement>(null);
 
   const handleFileDrop = (e: React.DragEvent) => {
     e.preventDefault();
@@ -39,16 +69,93 @@ export default function RegisterForm({ onBack, onRegister }: Props) {
     }
   };
 
-  const validateAndSetFile = (f: File) => {
+  const validateAndSetFile = (audioFile: File) => {
     const validTypes = ['audio/mpeg', 'audio/wav', 'audio/flac', 'audio/ogg', 'audio/aac', 'audio/mp4', 'audio/x-m4a', 'audio/webm'];
     const validExtensions = ['.mp3', '.wav', '.flac', '.ogg', '.aac', '.m4a', '.webm'];
-    const ext = f.name.substring(f.name.lastIndexOf('.')).toLowerCase();
-    
-    if (validTypes.includes(f.type) || validExtensions.includes(ext)) {
-      setFile(f);
+    const extension = audioFile.name.substring(audioFile.name.lastIndexOf('.')).toLowerCase();
+
+    if (validTypes.includes(audioFile.type) || validExtensions.includes(extension)) {
+      setFile(audioFile);
       setError('');
     } else {
-      setError('Please upload a valid audio file (MP3, WAV, FLAC, OGG, AAC, M4A)');
+      setError('Please upload a valid audio file (MP3, WAV, FLAC, OGG, AAC, M4A).');
+    }
+  };
+
+  const loadMasterSheet = async (masterSheetFile: File) => {
+    const extension = masterSheetFile.name.slice(masterSheetFile.name.lastIndexOf('.')).toLowerCase();
+    const isTextFile = masterSheetFile.type.startsWith('text/') || ['.txt', '.md', '.markdown'].includes(extension);
+
+    if (!isTextFile) {
+      setError('Please use a TXT or MD master sheet.');
+      return;
+    }
+
+    if (masterSheetFile.size > 2 * 1024 * 1024) {
+      setError('The master sheet must be 2 MB or smaller.');
+      return;
+    }
+
+    try {
+      const text = (await masterSheetFile.text()).replace(/\r\n?/g, '\n');
+      const importedTitle = extractLabeledValue(text, 'Track Name');
+      const importedArtist = extractLabeledValue(text, 'Artist / Producer');
+      const importedGenre = extractLabeledValue(text, 'Primary Genre');
+      const importedCoArtists = extractLabeledValue(text, 'Co-Artists / Contributors');
+      const pitch = extractSection(text, 'TRACK DESCRIPTION \\/ MARKETING PITCH');
+      const importedLyrics = extractSection(text, '(?:SONG )?LYRICS(?: \\/ SONG TEXT)?');
+      const bpm = extractLabeledValue(text, 'BPM (Tempo)');
+      const keySignature = extractLabeledValue(text, 'Key Signature');
+      const duration = extractLabeledValue(text, 'Duration');
+      const mood = extractLabeledValue(text, 'Emotional Mood');
+      const vibe = extractLabeledValue(text, 'Auditory Vibe');
+      const instruments = extractLabeledValue(text, 'Instruments');
+      const streamingUrl = extractLabeledValue(text, 'Streaming Master URL');
+
+      if (!importedTitle && !importedArtist && !importedGenre && !pitch) {
+        setError('This file does not look like an OGBeatz master sheet.');
+        return;
+      }
+
+      const technicalDetails = [
+        bpm ? `BPM: ${bpm}` : '',
+        keySignature ? `Key: ${keySignature}` : '',
+        duration ? `Duration: ${duration}` : '',
+        mood ? `Mood: ${mood}` : '',
+        vibe ? `Vibe: ${vibe}` : '',
+        instruments ? `Instruments: ${instruments}` : '',
+      ].filter(Boolean).join(' • ');
+
+      if (importedTitle) setTitle(importedTitle);
+      if (importedArtist) setArtist(importedArtist);
+      if (importedCoArtists) setCoArtists(importedCoArtists);
+      if (importedGenre) setGenre(importedGenre);
+      if (pitch || technicalDetails) {
+        setDescription([pitch, technicalDetails].filter(Boolean).join('\n\n'));
+      }
+      if (importedLyrics) {
+        setLyrics(importedLyrics);
+        setLyricsFileName(masterSheetFile.name);
+      }
+
+      setMasterSheetFileName(masterSheetFile.name);
+      setMasterSheetMessage(
+        streamingUrl && streamingUrl !== 'N/A'
+          ? 'Details imported. Upload the matching audio file separately so EZ Copyright can hash the exact file.'
+          : 'Details imported. Review the fields, add the creation date, and upload the matching audio file.',
+      );
+      setError('');
+    } catch {
+      setError('The master sheet could not be read. Please try a plain text file.');
+    }
+  };
+
+  const handleMasterSheetDrop = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    setIsMasterSheetDragging(false);
+    const droppedFile = e.dataTransfer.files[0];
+    if (droppedFile) {
+      void loadMasterSheet(droppedFile);
     }
   };
 
@@ -94,7 +201,7 @@ export default function RegisterForm({ onBack, onRegister }: Props) {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!title.trim() || !artist.trim() || !genre || !file) {
       setError('Please fill in all required fields and upload an audio file.');
       return;
@@ -105,20 +212,20 @@ export default function RegisterForm({ onBack, onRegister }: Props) {
 
     try {
       setProcessingStep('Analyzing audio file...');
-      await new Promise(r => setTimeout(r, 800));
+      await new Promise(resolve => setTimeout(resolve, 800));
 
       setProcessingStep('Generating cryptographic hash...');
       const fileHash = await generateFileHash(file);
-      await new Promise(r => setTimeout(r, 600));
+      await new Promise(resolve => setTimeout(resolve, 600));
 
       setProcessingStep('Creating digital fingerprint...');
       const timestamp = new Date().toISOString();
       const fingerprint = await generateDigitalFingerprint(title, artist, timestamp, fileHash);
-      await new Promise(r => setTimeout(r, 700));
+      await new Promise(resolve => setTimeout(resolve, 700));
 
       setProcessingStep('Issuing evidence certificate...');
-      const regNumber = generateRegistrationNumber();
-      await new Promise(r => setTimeout(r, 500));
+      const registrationNumber = generateRegistrationNumber();
+      await new Promise(resolve => setTimeout(resolve, 500));
 
       const work: MusicalWork = {
         id: crypto.randomUUID(),
@@ -130,7 +237,7 @@ export default function RegisterForm({ onBack, onRegister }: Props) {
         lyrics: lyrics.trim(),
         dateCreated: dateCreated || new Date().toISOString().split('T')[0],
         dateRegistered: timestamp,
-        registrationNumber: regNumber,
+        registrationNumber,
         digitalFingerprint: fingerprint,
         fileHash: fileHash.toUpperCase(),
         fileName: file.name,
@@ -148,21 +255,19 @@ export default function RegisterForm({ onBack, onRegister }: Props) {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-neutral-950 via-stone-950 to-neutral-950">
-      {/* Header */}
       <div className="border-b border-white/10 bg-neutral-950/80 backdrop-blur-xl sticky top-0 z-50">
         <div className="max-w-4xl mx-auto px-4 py-4 flex items-center gap-4">
           <button onClick={onBack} className="p-2 rounded-xl hover:bg-white/10 text-white/60 hover:text-white transition cursor-pointer">
             <ArrowLeft className="w-5 h-5" />
           </button>
           <div className="flex items-center gap-2">
-            <img src="/logo.png" alt="CTS Management Hub" className="w-7 h-7 object-contain" />
+            <img src="/logo.png" alt="EZ Way Copyrights" className="w-7 h-7 object-contain" />
             <span className="font-bold text-white">Register New Work</span>
           </div>
         </div>
       </div>
 
       <div className="max-w-4xl mx-auto px-4 py-8 sm:py-12">
-        {/* Processing overlay */}
         {isProcessing && (
           <div className="fixed inset-0 bg-neutral-950/90 backdrop-blur-sm z-50 flex items-center justify-center">
             <div className="bg-neutral-900 border border-orange-500/30 rounded-3xl p-10 max-w-md w-full mx-4 text-center shadow-2xl shadow-orange-900/30">
@@ -203,13 +308,79 @@ export default function RegisterForm({ onBack, onRegister }: Props) {
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-8">
-          {/* File Upload */}
+          <div className="bg-white/5 border border-white/10 rounded-2xl p-6">
+            <h2 className="text-lg font-semibold text-white mb-2 flex items-center gap-2">
+              <FileText className="w-5 h-5 text-orange-400" />
+              Import OGBeatz Master Sheet
+            </h2>
+            <p className="text-sm text-white/45 mb-4">
+              Optional: import a studio master sheet to fill the work details automatically.
+            </p>
+            <div
+              onDrop={handleMasterSheetDrop}
+              onDragEnter={(e) => {
+                e.preventDefault();
+                setIsMasterSheetDragging(true);
+              }}
+              onDragOver={(e) => {
+                e.preventDefault();
+                setIsMasterSheetDragging(true);
+              }}
+              onDragLeave={() => setIsMasterSheetDragging(false)}
+              className={`rounded-2xl border-2 border-dashed p-6 transition-all ${
+                isMasterSheetDragging
+                  ? 'border-orange-400 bg-orange-500/10'
+                  : 'border-white/20 bg-black/10 hover:border-orange-500/40'
+              }`}
+            >
+              <input
+                ref={masterSheetInputRef}
+                type="file"
+                accept=".txt,.md,.markdown,text/plain,text/markdown"
+                className="hidden"
+                onChange={(e) => {
+                  const selectedFile = e.target.files?.[0];
+                  if (selectedFile) {
+                    void loadMasterSheet(selectedFile);
+                  }
+                  e.currentTarget.value = '';
+                }}
+              />
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                <div className="flex items-center gap-3">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-orange-500/10">
+                    <FileText className="w-6 h-6 text-orange-300" />
+                  </div>
+                  <div>
+                    <p className="font-semibold text-white">Drop the master sheet here</p>
+                    <p className="text-sm text-white/40">TXT or MD • Maximum 2 MB</p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => masterSheetInputRef.current?.click()}
+                  className="rounded-xl border border-white/15 bg-white/5 px-4 py-2 text-sm font-medium text-white hover:bg-white/10 cursor-pointer"
+                >
+                  Choose master sheet
+                </button>
+              </div>
+              {masterSheetFileName && (
+                <div className="mt-4 rounded-xl border border-emerald-500/20 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-100">
+                  <div className="flex items-center gap-2 font-medium">
+                    <CheckCircle2 className="w-4 h-4 flex-shrink-0" />
+                    Imported {masterSheetFileName}
+                  </div>
+                  <p className="mt-1 text-xs text-emerald-100/70">{masterSheetMessage}</p>
+                </div>
+              )}
+            </div>
+          </div>
+
           <div className="bg-white/5 border border-white/10 rounded-2xl p-6">
             <h2 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
               <FileAudio className="w-5 h-5 text-orange-400" />
               Audio File <span className="text-red-400">*</span>
             </h2>
-            
             <div
               onDrop={handleFileDrop}
               onDragOver={(e) => e.preventDefault()}
@@ -248,7 +419,6 @@ export default function RegisterForm({ onBack, onRegister }: Props) {
             </div>
           </div>
 
-          {/* Work Details */}
           <div className="bg-white/5 border border-white/10 rounded-2xl p-6">
             <h2 className="text-lg font-semibold text-white mb-6 flex items-center gap-2">
               <Music className="w-5 h-5 text-orange-400" />
@@ -305,8 +475,11 @@ export default function RegisterForm({ onBack, onRegister }: Props) {
                   className="w-full bg-white/5 border border-white/15 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500/50 transition appearance-none"
                 >
                   <option value="" className="bg-neutral-900">Select genre</option>
-                  {GENRES.map(g => (
-                    <option key={g} value={g} className="bg-neutral-900">{g}</option>
+                  {genre && !GENRES.includes(genre) && (
+                    <option value={genre} className="bg-neutral-900">{genre} (imported)</option>
+                  )}
+                  {GENRES.map(item => (
+                    <option key={item} value={item} className="bg-neutral-900">{item}</option>
                   ))}
                 </select>
               </div>
@@ -331,8 +504,8 @@ export default function RegisterForm({ onBack, onRegister }: Props) {
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
                   placeholder="Brief description of the work (mood, inspiration, instruments used...)"
-                  rows={3}
-                  className="w-full bg-white/5 border border-white/15 rounded-xl px-4 py-3 text-white placeholder:text-white/30 focus:outline-none focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500/50 transition resize-none"
+                  rows={5}
+                  className="w-full bg-white/5 border border-white/15 rounded-xl px-4 py-3 text-white placeholder:text-white/30 focus:outline-none focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500/50 transition resize-y"
                 />
               </div>
 
@@ -409,7 +582,6 @@ export default function RegisterForm({ onBack, onRegister }: Props) {
             </div>
           </div>
 
-          {/* Error */}
           {error && (
             <div className="flex items-center gap-3 bg-red-500/10 border border-red-500/30 rounded-xl px-4 py-3 text-red-300">
               <AlertCircle className="w-5 h-5 flex-shrink-0" />
@@ -417,18 +589,13 @@ export default function RegisterForm({ onBack, onRegister }: Props) {
             </div>
           )}
 
-          {/* Submit */}
           <div className="flex flex-col sm:flex-row gap-4 pt-4">
             <button
               type="submit"
               disabled={isProcessing}
               className="flex-1 flex items-center justify-center gap-2 bg-gradient-to-r from-orange-600 to-amber-600 hover:from-orange-500 hover:to-amber-500 text-white px-8 py-4 rounded-2xl text-lg font-semibold shadow-2xl shadow-orange-900/50 transition-all duration-300 hover:scale-[1.02] disabled:opacity-50 disabled:hover:scale-100 cursor-pointer"
             >
-              {isProcessing ? (
-                <Loader2 className="w-5 h-5 animate-spin" />
-              ) : (
-                <Sparkles className="w-5 h-5" />
-              )}
+              {isProcessing ? <Loader2 className="w-5 h-5 animate-spin" /> : <Sparkles className="w-5 h-5" />}
               {isProcessing ? 'Processing...' : 'Generate Evidence Certificate'}
             </button>
           </div>
