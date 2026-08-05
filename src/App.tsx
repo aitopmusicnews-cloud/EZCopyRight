@@ -5,7 +5,16 @@ import Certificate from './components/Certificate';
 import Dashboard from './components/Dashboard';
 import AuthScreen from './components/AuthScreen';
 import type { MusicalWork, Page } from './types';
-import { getAuthMode, getCurrentUser, signIn, signOut, signUp, subscribeToAuthChanges, type AuthUser } from './lib/auth';
+import {
+  confirmSignUp,
+  getAuthMode,
+  getCurrentUser,
+  signIn,
+  signOut,
+  signUp,
+  subscribeToAuthChanges,
+  type AuthUser,
+} from './lib/auth';
 import { createWork, listWorks, removeWork } from './lib/worksRepository';
 
 export default function App() {
@@ -121,7 +130,15 @@ export default function App() {
   };
 
   const handleSignUp = async (email: string, password: string) => {
-    const user = await signUp(email, password);
+    const result = await signUp(email, password);
+    if (result.user) {
+      handleAuthSuccess(result.user);
+    }
+    return { confirmationRequired: result.confirmationRequired };
+  };
+
+  const handleConfirmSignUp = async (email: string, password: string, confirmationCode: string) => {
+    const user = await confirmSignUp(email, password, confirmationCode);
     handleAuthSuccess(user);
   };
 
@@ -132,7 +149,6 @@ export default function App() {
     setPage('landing');
   };
 
-  // Scroll to top on page change
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }, [page]);
@@ -162,7 +178,13 @@ export default function App() {
             workCount={works.length}
             isAuthenticated={Boolean(authUser)}
             userEmail={authUser?.email ?? null}
-            authModeLabel={authMode === 'supabase' ? 'Secure cloud mode enabled' : 'Local demo mode'}
+            authModeLabel={
+              authMode === 'cognito'
+                ? 'AWS Cognito secure cloud'
+                : authMode === 'supabase'
+                  ? 'Supabase secure cloud'
+                  : 'Local demo mode'
+            }
             onAuthAction={() => {
               setAuthTargetPage('dashboard');
               setPage('auth');
@@ -181,6 +203,7 @@ export default function App() {
           onBack={() => setPage('landing')}
           onSignIn={handleSignIn}
           onSignUp={handleSignUp}
+          onConfirmSignUp={handleConfirmSignUp}
         />
       );
     case 'register':
