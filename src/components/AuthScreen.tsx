@@ -40,6 +40,19 @@ export default function AuthScreen({
     setError('');
   };
 
+  const openConfirmationEntry = () => {
+    if (!email.trim() || !password) {
+      setIsSignUp(true);
+      setError('Enter the email and password used to create the account, then choose “Enter confirmation code” again.');
+      return;
+    }
+
+    setIsSignUp(true);
+    setAwaitingConfirmation(true);
+    setConfirmationCode('');
+    setError('');
+  };
+
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
     setSubmitting(true);
@@ -60,7 +73,12 @@ export default function AuthScreen({
         await onSignIn(email, password);
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Authentication failed.');
+      const message = err instanceof Error ? err.message : 'Authentication failed.';
+      if (!awaitingConfirmation && message.toLowerCase().includes('confirmation code')) {
+        setIsSignUp(true);
+        setAwaitingConfirmation(true);
+      }
+      setError(message);
     } finally {
       setSubmitting(false);
     }
@@ -132,7 +150,7 @@ export default function AuthScreen({
             {awaitingConfirmation && (
               <div className="mb-6 rounded-2xl border border-emerald-500/20 bg-emerald-500/10 p-4 text-sm text-white/75 flex gap-3">
                 <MailCheck className="w-5 h-5 text-emerald-300 flex-shrink-0 mt-0.5" />
-                <span>Enter the confirmation code AWS sent to {email}.</span>
+                <span>Enter the confirmation code AWS sent to <strong>{email}</strong>.</span>
               </div>
             )}
 
@@ -183,9 +201,10 @@ export default function AuthScreen({
                       autoComplete="one-time-code"
                       value={confirmationCode}
                       onChange={(event) => setConfirmationCode(event.target.value)}
-                      placeholder="Enter the code"
+                      placeholder="Enter the code from your email"
                       className="w-full bg-transparent text-white placeholder:text-white/25 focus:outline-none tracking-widest"
                       required
+                      autoFocus
                     />
                   </div>
                 </label>
@@ -210,6 +229,16 @@ export default function AuthScreen({
                       ? 'Create account'
                       : 'Sign in'}
               </button>
+
+              {!awaitingConfirmation && authMode === 'cognito' && (
+                <button
+                  type="button"
+                  onClick={openConfirmationEntry}
+                  className="w-full rounded-2xl border border-orange-500/20 bg-orange-500/5 px-4 py-3 text-sm font-medium text-orange-200 hover:bg-orange-500/10 cursor-pointer"
+                >
+                  Enter confirmation code
+                </button>
+              )}
 
               {awaitingConfirmation && (
                 <button
