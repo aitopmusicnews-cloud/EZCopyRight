@@ -21,12 +21,15 @@ export default function RegisterForm({ onBack, onRegister }: Props) {
   const [genre, setGenre] = useState('');
   const [description, setDescription] = useState('');
   const [lyrics, setLyrics] = useState('');
+  const [lyricsFileName, setLyricsFileName] = useState('');
+  const [isLyricsDragging, setIsLyricsDragging] = useState(false);
   const [dateCreated, setDateCreated] = useState('');
   const [file, setFile] = useState<File | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [processingStep, setProcessingStep] = useState('');
   const [error, setError] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const lyricsInputRef = useRef<HTMLInputElement>(null);
 
   const handleFileDrop = (e: React.DragEvent) => {
     e.preventDefault();
@@ -46,6 +49,46 @@ export default function RegisterForm({ onBack, onRegister }: Props) {
       setError('');
     } else {
       setError('Please upload a valid audio file (MP3, WAV, FLAC, OGG, AAC, M4A)');
+    }
+  };
+
+  const loadLyricsFile = async (lyricsFile: File) => {
+    const dotIndex = lyricsFile.name.lastIndexOf('.');
+    const extension = dotIndex >= 0 ? lyricsFile.name.slice(dotIndex).toLowerCase() : '';
+    const validExtensions = ['.txt', '.md', '.markdown', '.lrc'];
+    const isTextFile = lyricsFile.type.startsWith('text/') || validExtensions.includes(extension);
+
+    if (!isTextFile) {
+      setError('Please use a TXT, MD, or LRC file for lyrics.');
+      return;
+    }
+
+    if (lyricsFile.size > 2 * 1024 * 1024) {
+      setError('The lyrics file must be 2 MB or smaller.');
+      return;
+    }
+
+    try {
+      const text = (await lyricsFile.text()).replace(/\r\n?/g, '\n');
+      if (!text.trim()) {
+        setError('The lyrics file is empty.');
+        return;
+      }
+
+      setLyrics(text);
+      setLyricsFileName(lyricsFile.name);
+      setError('');
+    } catch {
+      setError('The lyrics file could not be read. Please try a plain text file.');
+    }
+  };
+
+  const handleLyricsDrop = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    setIsLyricsDragging(false);
+    const droppedFile = e.dataTransfer.files[0];
+    if (droppedFile) {
+      void loadLyricsFile(droppedFile);
     }
   };
 
@@ -295,15 +338,73 @@ export default function RegisterForm({ onBack, onRegister }: Props) {
 
               <div className="sm:col-span-2">
                 <label className="block text-sm font-medium text-white/70 mb-2">
-                  Lyrics (if applicable)
+                  Lyrics (type, paste, or drag and drop)
                 </label>
-                <textarea
-                  value={lyrics}
-                  onChange={(e) => setLyrics(e.target.value)}
-                  placeholder="Paste song lyrics here..."
-                  rows={4}
-                  className="w-full bg-white/5 border border-white/15 rounded-xl px-4 py-3 text-white placeholder:text-white/30 focus:outline-none focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500/50 transition resize-none font-mono text-sm"
-                />
+                <div
+                  onDrop={handleLyricsDrop}
+                  onDragEnter={(e) => {
+                    e.preventDefault();
+                    setIsLyricsDragging(true);
+                  }}
+                  onDragOver={(e) => {
+                    e.preventDefault();
+                    setIsLyricsDragging(true);
+                  }}
+                  onDragLeave={() => setIsLyricsDragging(false)}
+                  className={`rounded-2xl border-2 border-dashed p-4 transition-all ${
+                    isLyricsDragging
+                      ? 'border-orange-400 bg-orange-500/10'
+                      : 'border-white/15 bg-white/[0.03] hover:border-orange-500/35'
+                  }`}
+                >
+                  <input
+                    ref={lyricsInputRef}
+                    type="file"
+                    accept=".txt,.md,.markdown,.lrc,text/plain,text/markdown"
+                    className="hidden"
+                    onChange={(e) => {
+                      const selectedFile = e.target.files?.[0];
+                      if (selectedFile) {
+                        void loadLyricsFile(selectedFile);
+                      }
+                      e.currentTarget.value = '';
+                    }}
+                  />
+
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                    <div className="flex items-center gap-3">
+                      <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-orange-500/10">
+                        <Upload className="w-5 h-5 text-orange-300" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium text-white">Drop a lyrics file here</p>
+                        <p className="text-xs text-white/40">TXT, MD, or LRC • Maximum 2 MB</p>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => lyricsInputRef.current?.click()}
+                      className="rounded-xl border border-white/15 bg-white/5 px-4 py-2 text-sm font-medium text-white hover:bg-white/10 cursor-pointer"
+                    >
+                      Choose lyrics file
+                    </button>
+                  </div>
+
+                  {lyricsFileName && (
+                    <div className="mt-3 flex items-center gap-2 rounded-xl border border-emerald-500/20 bg-emerald-500/10 px-3 py-2 text-xs text-emerald-200">
+                      <CheckCircle2 className="w-4 h-4 flex-shrink-0" />
+                      Loaded {lyricsFileName}. You can edit the lyrics below.
+                    </div>
+                  )}
+
+                  <textarea
+                    value={lyrics}
+                    onChange={(e) => setLyrics(e.target.value)}
+                    placeholder="Type or paste lyrics here, or drop a TXT, MD, or LRC file above..."
+                    rows={8}
+                    className="mt-4 w-full bg-black/20 border border-white/15 rounded-xl px-4 py-3 text-white placeholder:text-white/30 focus:outline-none focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500/50 transition resize-y font-mono text-sm"
+                  />
+                </div>
               </div>
             </div>
           </div>
