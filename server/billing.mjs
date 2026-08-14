@@ -29,10 +29,17 @@ export function createStripeBilling(config) {
       return resolvedPriceId;
     }
     if (config.stripePriceId.startsWith('prod_')) {
-      const product = await requireStripe().products.retrieve(config.stripePriceId);
-      resolvedPriceId = typeof product.default_price === 'string'
+      let product;
+      try {
+        product = await requireStripe().products.retrieve(config.stripePriceId);
+      } catch (error) {
+        if (error?.code !== 'resource_missing') throw error;
+        const products = await requireStripe().products.list({ active: true, limit: 100 });
+        product = products.data.find((candidate) => candidate.name === 'EZ Copyright Membership');
+      }
+      resolvedPriceId = typeof product?.default_price === 'string'
         ? product.default_price
-        : product.default_price?.id;
+        : product?.default_price?.id;
       if (resolvedPriceId) return resolvedPriceId;
     }
     throw new Error('The configured Stripe product does not have a default recurring price.');
