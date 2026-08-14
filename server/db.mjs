@@ -22,10 +22,33 @@ CREATE TABLE IF NOT EXISTS works (
   file_size BIGINT NOT NULL CHECK (file_size > 0),
   file_type VARCHAR(120) NOT NULL,
   status VARCHAR(24) NOT NULL CHECK (status IN ('pending', 'registered')),
+  upload_id UUID,
+  object_key TEXT,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   UNIQUE (user_id, idempotency_key)
 );
+
+ALTER TABLE works ADD COLUMN IF NOT EXISTS upload_id UUID;
+ALTER TABLE works ADD COLUMN IF NOT EXISTS object_key TEXT;
+
+CREATE TABLE IF NOT EXISTS file_uploads (
+  id UUID PRIMARY KEY,
+  user_id TEXT NOT NULL,
+  object_key TEXT NOT NULL UNIQUE,
+  file_hash CHAR(64) NOT NULL,
+  file_name VARCHAR(255) NOT NULL,
+  file_size BIGINT NOT NULL CHECK (file_size > 0),
+  file_type VARCHAR(120) NOT NULL,
+  checksum_sha256 VARCHAR(64) NOT NULL,
+  status VARCHAR(24) NOT NULL CHECK (status IN ('pending', 'ready', 'consumed')),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  completed_at TIMESTAMPTZ,
+  consumed_at TIMESTAMPTZ
+);
+
+CREATE INDEX IF NOT EXISTS file_uploads_user_created_idx
+  ON file_uploads (user_id, created_at DESC);
 
 CREATE INDEX IF NOT EXISTS works_user_registered_idx
   ON works (user_id, date_registered DESC);

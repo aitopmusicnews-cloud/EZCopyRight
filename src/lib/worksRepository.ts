@@ -101,11 +101,32 @@ export async function listWorks(userId: string): Promise<MusicalWork[]> {
   return (data as WorkRow[]).map(fromRow);
 }
 
-export async function createWork(userId: string, work: MusicalWork): Promise<MusicalWork> {
+export async function createWork(userId: string, work: MusicalWork, file?: File): Promise<MusicalWork> {
   if (isApiConfigured) {
+    if (!file) throw new Error('Select the audio file again to store a private copy.');
+    const upload = await apiRequest<{
+      uploadId: string;
+      uploadUrl: string;
+      headers: Record<string, string>;
+    }>('/v1/uploads', {
+      method: 'POST',
+      body: JSON.stringify({
+        fileHash: work.fileHash,
+        fileName: work.fileName,
+        fileSize: work.fileSize,
+        fileType: work.fileType,
+      }),
+    });
+    const uploadResponse = await fetch(upload.uploadUrl, {
+      method: 'PUT',
+      headers: upload.headers,
+      body: file,
+    });
+    if (!uploadResponse.ok) throw new Error('The private audio upload failed. Please try again.');
+    await apiRequest(`/v1/uploads/${encodeURIComponent(upload.uploadId)}/complete`, { method: 'POST' });
     const response = await apiRequest<{ work: MusicalWork }>('/v1/works', {
       method: 'POST',
-      body: JSON.stringify(work),
+      body: JSON.stringify({ ...work, uploadId: upload.uploadId }),
     });
     return response.work;
   }
@@ -146,4 +167,9 @@ export async function removeWork(userId: string, workId: string): Promise<void> 
     .eq('user_id', userId);
 
   if (error) throw error;
+}
+
+export async function getWorkAudioUrl(workId: string): Promise<string> {
+  const response = await apiRequest<{ url: string }>(`/v1/works/${encodeURIComponent(workId)}/audio`);
+  return response.url;
 }

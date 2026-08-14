@@ -18,7 +18,7 @@ import LegalFooter from './LegalFooter';
 
 interface Props {
   onBack: () => void;
-  onRegister: (work: MusicalWork) => Promise<void>;
+  onRegister: (work: MusicalWork, file: File) => Promise<void>;
   onLegalNavigate: (page: LegalPageId) => void;
 }
 
@@ -225,7 +225,7 @@ export default function RegisterForm({ onBack, onRegister, onLegalNavigate }: Pr
       const fingerprint = await generateDigitalFingerprint(title, artist, timestamp, fileHash);
       await new Promise(resolve => setTimeout(resolve, 700));
 
-      setProcessingStep('Issuing evidence certificate...');
+      setProcessingStep('Uploading encrypted private copy...');
       const registrationNumber = generateRegistrationNumber();
       await new Promise(resolve => setTimeout(resolve, 500));
 
@@ -248,7 +248,7 @@ export default function RegisterForm({ onBack, onRegister, onLegalNavigate }: Pr
         status: 'registered',
       };
 
-      await onRegister(work);
+      await onRegister(work, file);
     } catch {
       setError('An error occurred during registration. Please try again.');
       setIsProcessing(false);
@@ -604,7 +604,7 @@ export default function RegisterForm({ onBack, onRegister, onLegalNavigate }: Pr
 
           <p className="text-xs text-white/30 text-center">
             By continuing, you confirm that you are the rightful creator or authorized representative of this work.
-            Your file is processed locally — it never leaves your device.
+            Your file is hashed locally, then uploaded through an encrypted, temporary link to private storage.
           </p>
         </form>
       </div>

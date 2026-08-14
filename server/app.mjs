@@ -8,6 +8,7 @@ import { createCognitoVerifier } from './auth.mjs';
 
 const workSchema = z.object({
   id: z.string().uuid(),
+  uploadId: z.string().uuid(),
   title: z.string().trim().min(1).max(200),
   artist: z.string().trim().min(1).max(200),
   coArtists: z.string().trim().max(2_000).default(''),
@@ -18,6 +19,13 @@ const workSchema = z.object({
   fileHash: z.string().trim().regex(/^[a-fA-F0-9]{64}$/),
   fileName: z.string().trim().min(1).max(255),
   fileSize: z.number().int().positive().max(2_147_483_648),
+  fileType: z.string().trim().min(1).max(120),
+});
+
+const uploadSchema = z.object({
+  fileHash: z.string().trim().regex(/^[a-fA-F0-9]{64}$/),
+  fileName: z.string().trim().min(1).max(255),
+  fileSize: z.number().int().positive(),
   fileType: z.string().trim().min(1).max(120),
 });
 
@@ -50,6 +58,12 @@ function createFingerprint(userId, work, dateRegistered) {
     .toUpperCase();
 }
 
+function createObjectKey(userId, uploadId, fileName) {
+  const owner = createHash('sha256').update(userId).digest('hex').slice(0, 40);
+  const safeName = fileName.normalize('NFKD').replace(/[^a-zA-Z0-9._-]+/g, '-').slice(-180) || 'audio';
+  return `private/${owner}/${uploadId}/${safeName}`;
+}
+
 function fromWorkRow(row) {
   return {
     id: row.id,
@@ -71,6 +85,8 @@ function fromWorkRow(row) {
     fileSize: Number(row.file_size),
     fileType: row.file_type,
     status: row.status,
+    uploadId: row.upload_id || undefined,
+    hasStoredAudio: Boolean(row.object_key),
   };
 }
 
@@ -82,7 +98,7 @@ async function recordAudit(database, request, action, resourceType, resourceId, 
   );
 }
 
-export function createApp({ database, config, verifyToken = createCognitoVerifier(config) }) {
+export function createApp({ database, config, storage, verifyToken = createCognitoVerifier(config) }) {
   const app = express();
   app.set('trust proxy', 1);
   app.disable('x-powered-by');
@@ -167,6 +183,52 @@ export function createApp({ database, config, verifyToken = createCognitoVerifie
     response.json({ id: request.auth.userId, email: request.auth.email });
   });
 
+  app.post('/v1/uploads', authenticate, writeLimiter, asyncRoute(async (request, response) => {
+    const upload = uploadSchema.parse(request.body);
+    if (upload.fileSize > config.maxUploadBytes) {
+      response.status(413).json({ error: 'file_too_large', maxBytes: config.maxUploadBytes, requestId: request.id });
+      return;
+    }
+    const id = randomUUID();
+    const fileHash = upload.fileHash.toUpperCase();
+    const checksumSha256 = Buffer.from(fileHash, 'hex').toString('base64');
+    const objectKey = createObjectKey(request.auth.userId, id, upload.fileName);
+    await database.query(
+      `INSERT INTO file_uploads (
+        id, user_id, object_key, file_hash, file_name, file_size, file_type, checksum_sha256, status
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'pending')`,
+      [id, request.auth.userId, objectKey, fileHash, upload.fileName, upload.fileSize, upload.fileType, checksumSha256],
+    );
+    const signed = await storage.createUpload({ objectKey, fileType: upload.fileType, checksumSha256 });
+    await recordAudit(database, request, 'upload.created', 'upload', id, { fileSize: upload.fileSize });
+    response.status(201).json({ uploadId: id, uploadUrl: signed.url, headers: signed.headers, expiresInSeconds: 900 });
+  }));
+
+  app.post('/v1/uploads/:id/complete', authenticate, writeLimiter, asyncRoute(async (request, response) => {
+    const id = z.string().uuid().parse(request.params.id);
+    const result = await database.query(
+      `SELECT * FROM file_uploads WHERE id = $1 AND user_id = $2 AND status = 'pending'`,
+      [id, request.auth.userId],
+    );
+    const upload = result.rows[0];
+    if (!upload) {
+      response.status(404).json({ error: 'upload_not_found', requestId: request.id });
+      return;
+    }
+    const stored = await storage.verifyUpload({ objectKey: upload.object_key });
+    if (stored.size !== Number(upload.file_size) || stored.checksumSha256 !== upload.checksum_sha256) {
+      await storage.deleteObject({ objectKey: upload.object_key });
+      response.status(409).json({ error: 'upload_verification_failed', requestId: request.id });
+      return;
+    }
+    await database.query(
+      `UPDATE file_uploads SET status = 'ready', completed_at = NOW() WHERE id = $1 AND user_id = $2`,
+      [id, request.auth.userId],
+    );
+    await recordAudit(database, request, 'upload.verified', 'upload', id, { fileSize: stored.size });
+    response.json({ uploadId: id, status: 'ready' });
+  }));
+
   app.get('/v1/works', authenticate, asyncRoute(async (request, response) => {
     const result = await database.query(
       `SELECT * FROM works WHERE user_id = $1 ORDER BY date_registered DESC LIMIT 500`,
@@ -188,8 +250,33 @@ export function createApp({ database, config, verifyToken = createCognitoVerifie
     response.json({ work: fromWorkRow(result.rows[0]) });
   }));
 
+  app.get('/v1/works/:id/audio', authenticate, asyncRoute(async (request, response) => {
+    const id = z.string().uuid().parse(request.params.id);
+    const result = await database.query(
+      `SELECT object_key, file_name FROM works WHERE id = $1 AND user_id = $2`,
+      [id, request.auth.userId],
+    );
+    const work = result.rows[0];
+    if (!work?.object_key) {
+      response.status(404).json({ error: 'stored_audio_not_found', requestId: request.id });
+      return;
+    }
+    const url = await storage.createDownloadUrl({ objectKey: work.object_key, fileName: work.file_name });
+    response.json({ url, expiresInSeconds: 300 });
+  }));
+
   app.post('/v1/works', authenticate, writeLimiter, asyncRoute(async (request, response) => {
     const work = workSchema.parse(request.body);
+    const uploadResult = await database.query(
+      `SELECT * FROM file_uploads WHERE id = $1 AND user_id = $2 AND status = 'ready'`,
+      [work.uploadId, request.auth.userId],
+    );
+    const upload = uploadResult.rows[0];
+    if (!upload || upload.file_hash !== work.fileHash.toUpperCase()
+      || Number(upload.file_size) !== work.fileSize || upload.file_name !== work.fileName) {
+      response.status(409).json({ error: 'verified_upload_required', requestId: request.id });
+      return;
+    }
     const serverId = randomUUID();
     const registeredAt = new Date();
     const registrationNumber = createRegistrationNumber(registeredAt);
@@ -199,10 +286,10 @@ export function createApp({ database, config, verifyToken = createCognitoVerifie
       `INSERT INTO works (
         id, user_id, idempotency_key, title, artist, co_artists, genre, description, lyrics,
         date_created, date_registered, registration_number, digital_fingerprint, file_hash,
-        file_name, file_size, file_type, status
+        file_name, file_size, file_type, status, upload_id, object_key
       ) VALUES (
         $1, $2, $3, $4, $5, $6, $7, $8, $9,
-        $10, $11, $12, $13, $14, $15, $16, $17, 'pending'
+        $10, $11, $12, $13, $14, $15, $16, $17, 'registered', $18, $19
       )
       ON CONFLICT (user_id, idempotency_key)
       DO UPDATE SET updated_at = works.updated_at
@@ -212,7 +299,13 @@ export function createApp({ database, config, verifyToken = createCognitoVerifie
         work.genre, work.description, work.lyrics, work.dateCreated, registeredAt,
         registrationNumber, fingerprint, work.fileHash.toUpperCase(), work.fileName,
         work.fileSize, work.fileType,
+        work.uploadId, upload.object_key,
       ],
+    );
+
+    await database.query(
+      `UPDATE file_uploads SET status = 'consumed', consumed_at = NOW() WHERE id = $1 AND user_id = $2`,
+      [work.uploadId, request.auth.userId],
     );
 
     const savedWork = fromWorkRow(result.rows[0]);
@@ -225,6 +318,15 @@ export function createApp({ database, config, verifyToken = createCognitoVerifie
 
   app.delete('/v1/works/:id', authenticate, writeLimiter, asyncRoute(async (request, response) => {
     const id = z.string().uuid().parse(request.params.id);
+    const existing = await database.query(
+      `SELECT object_key FROM works WHERE id = $1 AND user_id = $2`,
+      [id, request.auth.userId],
+    );
+    if (!existing.rows[0]) {
+      response.status(404).json({ error: 'work_not_found', requestId: request.id });
+      return;
+    }
+    if (existing.rows[0].object_key) await storage.deleteObject({ objectKey: existing.rows[0].object_key });
     const result = await database.query(
       `DELETE FROM works WHERE id = $1 AND user_id = $2 RETURNING id, registration_number`,
       [id, request.auth.userId],

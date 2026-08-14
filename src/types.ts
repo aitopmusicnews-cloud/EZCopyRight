@@ -16,6 +16,8 @@ export interface MusicalWork {
   fileSize: number;
   fileType: string;
   status: 'registered' | 'pending';
+  uploadId?: string;
+  hasStoredAudio?: boolean;
 }
 
 export type LegalPageId = 'terms' | 'privacy' | 'refund-policy';
