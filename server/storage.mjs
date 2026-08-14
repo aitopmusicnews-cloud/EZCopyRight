@@ -20,7 +20,10 @@ export function createS3Storage(config) {
         ChecksumSHA256: checksumSha256,
       });
       return {
-        url: await getSignedUrl(client, command, { expiresIn: 900 }),
+        url: await getSignedUrl(client, command, {
+          expiresIn: 900,
+          unhoistableHeaders: new Set(['x-amz-checksum-sha256']),
+        }),
         headers: {
           'Content-Type': fileType,
           'x-amz-checksum-sha256': checksumSha256,
