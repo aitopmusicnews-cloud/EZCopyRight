@@ -21,6 +21,23 @@ export function createStripeBilling(config) {
     return stripe;
   }
 
+  let resolvedPriceId = null;
+  async function getPriceId() {
+    if (resolvedPriceId) return resolvedPriceId;
+    if (config.stripePriceId.startsWith('price_')) {
+      resolvedPriceId = config.stripePriceId;
+      return resolvedPriceId;
+    }
+    if (config.stripePriceId.startsWith('prod_')) {
+      const product = await requireStripe().products.retrieve(config.stripePriceId);
+      resolvedPriceId = typeof product.default_price === 'string'
+        ? product.default_price
+        : product.default_price?.id;
+      if (resolvedPriceId) return resolvedPriceId;
+    }
+    throw new Error('The configured Stripe product does not have a default recurring price.');
+  }
+
   async function saveSubscription(database, subscription, fallbackUserId = null, fallbackEmail = '') {
     const customerId = typeof subscription.customer === 'string' ? subscription.customer : subscription.customer?.id;
     const customer = customerId ? await requireStripe().customers.retrieve(customerId) : null;
@@ -48,10 +65,11 @@ export function createStripeBilling(config) {
   return {
     configured: Boolean(stripe && config.stripePriceId),
     async createCheckout({ database, userId, email }) {
+      const priceId = await getPriceId();
       const existing = await database.query('SELECT * FROM billing_customers WHERE user_id=$1', [userId]);
       const params = {
         mode: 'subscription',
-        line_items: [{ price: config.stripePriceId, quantity: 1 }],
+        line_items: [{ price: priceId, quantity: 1 }],
         client_reference_id: userId,
         success_url: `${config.appBaseUrl}/?billing=success`,
         cancel_url: `${config.appBaseUrl}/?billing=cancelled`,
