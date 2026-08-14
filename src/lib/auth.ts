@@ -254,6 +254,20 @@ export async function getCurrentUser(): Promise<AuthUser | null> {
   return mapSupabaseUser(user);
 }
 
+export async function getAccessToken(): Promise<string | null> {
+  if (!isCognitoConfigured) return null;
+
+  let session = readCognitoSession();
+  if (!session) return null;
+
+  if (session.expiresAt <= Date.now() + 60_000) {
+    await refreshCognitoSession(session);
+    session = readCognitoSession();
+  }
+
+  return session?.accessToken ?? null;
+}
+
 export function subscribeToAuthChanges(callback: (user: AuthUser | null) => void): () => void {
   if (isCognitoConfigured) {
     const onStorage = (event: StorageEvent) => {
