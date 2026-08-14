@@ -108,10 +108,12 @@ export function createApp({
   const app = express();
   app.set('trust proxy', 1);
   app.disable('x-powered-by');
+  app.disable('etag');
 
   app.use((request, response, next) => {
     request.id = requestId(request);
     response.setHeader('x-request-id', request.id);
+    if (request.path.startsWith('/v1/')) response.setHeader('Cache-Control', 'no-store');
     const startedAt = Date.now();
     response.on('finish', () => {
       console.log(JSON.stringify({
