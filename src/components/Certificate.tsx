@@ -3,15 +3,17 @@ import { Shield, Download, ArrowLeft, Copy, Check, Fingerprint, FileText, Extern
 import { useState } from 'react';
 import { toPng } from 'html-to-image';
 import { formatFileSize } from '../utils/crypto';
-import type { MusicalWork } from '../types';
+import type { LegalPageId, MusicalWork } from '../types';
+import LegalFooter from './LegalFooter';
 
 interface Props {
   work: MusicalWork;
   onBack: () => void;
   onDashboard: () => void;
+  onLegalNavigate: (page: LegalPageId) => void;
 }
 
-export default function Certificate({ work, onBack, onDashboard }: Props) {
+export default function Certificate({ work, onBack, onDashboard, onLegalNavigate }: Props) {
   const certRef = useRef<HTMLDivElement>(null);
   const [copied, setCopied] = useState<string | null>(null);
   const [downloading, setDownloading] = useState(false);
@@ -32,7 +34,7 @@ export default function Certificate({ work, onBack, onDashboard }: Props) {
         backgroundColor: '#0a0a0a',
       });
       const link = document.createElement('a');
-      link.download = `CTS-Management-Hub-Certificate-${work.registrationNumber}.png`;
+      link.download = `EZ-Copyright-Certificate-${work.registrationNumber}.png`;
       link.href = dataUrl;
       link.click();
     } catch (err) {
@@ -119,8 +121,8 @@ export default function Certificate({ work, onBack, onDashboard }: Props) {
               <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-orange-500/50 to-transparent" />
               
               <div className="flex items-center justify-center gap-3 mb-4">
-                <img src="/logo.png" alt="CTS Management Hub" className="w-14 h-14 object-contain" />
-                <span className="text-2xl font-bold text-white tracking-wide">CTS Management Hub</span>
+                <img src="/ez-way-logo.png" alt="THE EZ WAY" className="w-14 h-14 object-contain" />
+                <span className="text-2xl font-bold text-white tracking-wide">THE EZ WAY</span>
               </div>
               <h1 className="text-3xl sm:text-4xl font-bold text-white mb-2" style={{ fontFamily: 'Playfair Display, serif' }}>
                 Certificate of Copyright Evidence
@@ -213,10 +215,10 @@ export default function Certificate({ work, onBack, onDashboard }: Props) {
               {/* Footer */}
               <div className="border-t border-white/10 pt-6 text-center">
                 <div className="flex justify-center mb-3">
-                  <img src="/logo.png" alt="CTS Management Hub" className="w-10 h-10 object-contain opacity-50" />
+                  <img src="/ez-way-logo.png" alt="THE EZ WAY" className="w-10 h-10 object-contain opacity-50" />
                 </div>
                 <p className="text-xs text-white/30 leading-relaxed">
-                  This certificate confirms that the above-described work was documented with CTS Management Hub on the stated date.
+                  This certificate confirms that the above-described work was documented with EZ Copyright by THE EZ WAY on the stated date.
                   The digital fingerprint serves as cryptographic proof of the work's contents at the time this record was created.
                   <br />
                   Certificate ID: {work.id}
@@ -251,6 +253,7 @@ export default function Certificate({ work, onBack, onDashboard }: Props) {
           </button>
         </div>
       </div>
+      <LegalFooter onNavigate={onLegalNavigate} />
     </div>
   );
 }

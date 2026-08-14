@@ -1,6 +1,8 @@
 import { useState } from 'react';
-import { ArrowLeft, LockKeyhole, Mail, MailCheck, Shield, ShieldAlert } from 'lucide-react';
+import { ArrowLeft, LockKeyhole, Mail, MailCheck, ShieldAlert } from 'lucide-react';
 import type { AuthMode } from '../lib/auth';
+import type { LegalPageId } from '../types';
+import LegalFooter from './LegalFooter';
 
 interface Props {
   authMode: AuthMode;
@@ -9,6 +11,7 @@ interface Props {
   onSignIn: (email: string, password: string) => Promise<void>;
   onSignUp: (email: string, password: string) => Promise<{ confirmationRequired: boolean }>;
   onConfirmSignUp: (email: string, password: string, confirmationCode: string) => Promise<void>;
+  onLegalNavigate: (page: LegalPageId) => void;
 }
 
 export default function AuthScreen({
@@ -18,6 +21,7 @@ export default function AuthScreen({
   onSignIn,
   onSignUp,
   onConfirmSignUp,
+  onLegalNavigate,
 }: Props) {
   const [isSignUp, setIsSignUp] = useState(false);
   const [awaitingConfirmation, setAwaitingConfirmation] = useState(false);
@@ -26,6 +30,7 @@ export default function AuthScreen({
   const [confirmationCode, setConfirmationCode] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
+  const [acceptedPolicies, setAcceptedPolicies] = useState(false);
 
   const authModeLabel = authMode === 'cognito'
     ? 'AWS Cognito secure cloud'
@@ -38,6 +43,7 @@ export default function AuthScreen({
     setAwaitingConfirmation(false);
     setConfirmationCode('');
     setError('');
+    setAcceptedPolicies(false);
   };
 
   const openConfirmationEntry = () => {
@@ -65,6 +71,10 @@ export default function AuthScreen({
       }
 
       if (isSignUp) {
+        if (!acceptedPolicies) {
+          setError('You must agree to the Terms of Service and Privacy Policy to create an account.');
+          return;
+        }
         const result = await onSignUp(email, password);
         if (result.confirmationRequired) {
           setAwaitingConfirmation(true);
@@ -92,7 +102,7 @@ export default function AuthScreen({
             <ArrowLeft className="w-5 h-5" />
           </button>
           <div className="flex items-center gap-2">
-            <Shield className="w-5 h-5 text-orange-400" />
+            <img src="/ez-way-logo.png" alt="THE EZ WAY" className="w-7 h-7 object-contain" />
             <span className="font-bold text-white">Account Access</span>
           </div>
         </div>
@@ -210,6 +220,37 @@ export default function AuthScreen({
                 </label>
               )}
 
+              {!awaitingConfirmation && isSignUp && (
+                <label className="flex items-start gap-3 rounded-2xl border border-white/10 bg-white/[0.03] p-4 text-sm text-white/60">
+                  <input
+                    type="checkbox"
+                    checked={acceptedPolicies}
+                    onChange={(event) => setAcceptedPolicies(event.target.checked)}
+                    className="mt-1 h-4 w-4 accent-orange-500"
+                    required
+                  />
+                  <span>
+                    I agree to the{' '}
+                    <button
+                      type="button"
+                      onClick={() => onLegalNavigate('terms')}
+                      className="cursor-pointer text-orange-300 hover:text-orange-200"
+                    >
+                      Terms of Service
+                    </button>{' '}
+                    and acknowledge the{' '}
+                    <button
+                      type="button"
+                      onClick={() => onLegalNavigate('privacy')}
+                      className="cursor-pointer text-orange-300 hover:text-orange-200"
+                    >
+                      Privacy Policy
+                    </button>
+                    .
+                  </span>
+                </label>
+              )}
+
               {error && (
                 <div className="rounded-2xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-200">
                   {error}
@@ -257,6 +298,7 @@ export default function AuthScreen({
           </div>
         </div>
       </div>
+      <LegalFooter onNavigate={onLegalNavigate} />
     </div>
   );
 }

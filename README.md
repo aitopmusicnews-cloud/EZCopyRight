@@ -1,4 +1,4 @@
-# CTS Management Hub
+# EZ Copyright by THE EZ WAY
 
 > **Register, fingerprint, and certify your original musical works instantly — all from your browser.**
 
@@ -386,4 +386,4 @@ MIT License — free for personal and commercial use.
 
 ---
 
-**Built by CTS Management Hub**
+**Built by THE EZ WAY**

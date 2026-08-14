@@ -1,5 +1,7 @@
 import type {} from 'react';
 import { Shield, Fingerprint, Award, Zap, Music, Lock, ChevronRight, Star, TriangleAlert, ExternalLink } from 'lucide-react';
+import type { LegalPageId } from '../types';
+import LegalFooter from './LegalFooter';
 
 interface Props {
   onNavigate: (page: 'register' | 'dashboard') => void;
@@ -9,6 +11,7 @@ interface Props {
   authModeLabel: string;
   onAuthAction: () => void;
   onSignOut: () => void;
+  onLegalNavigate: (page: LegalPageId) => void;
 }
 
 export default function LandingHero({
@@ -19,6 +22,7 @@ export default function LandingHero({
   authModeLabel,
   onAuthAction,
   onSignOut,
+  onLegalNavigate,
 }: Props) {
   return (
     <div className="min-h-screen">
@@ -100,8 +104,8 @@ export default function LandingHero({
             {/* Logo */}
             <div className="flex justify-center mb-8">
               <img
-                src="/logo.png"
-                alt="CTS Management Hub"
+                src="/ez-way-logo.png"
+                alt="THE EZ WAY"
                 className="w-36 h-36 sm:w-44 sm:h-44 object-contain drop-shadow-2xl"
                 style={{ filter: 'drop-shadow(0 0 30px rgba(245, 158, 11, 0.25))' }}
               />
@@ -167,7 +171,7 @@ export default function LandingHero({
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
             <h2 className="text-3xl sm:text-4xl font-bold text-white mb-4" style={{ fontFamily: 'Playfair Display, serif' }}>
-              How EZ Way Copyrights Help You
+              How EZ Copyright Helps You
             </h2>
             <p className="text-lg text-white/50 max-w-xl mx-auto">
               Three powerful layers of protection for your creative works
@@ -268,7 +272,7 @@ export default function LandingHero({
                   Use This As Evidence, Not As A Government Filing
                 </h2>
                 <p className="text-white/65 max-w-3xl leading-relaxed mb-6">
-                  CTS Management Hub creates a private evidence record on your device. It does not replace registration with the U.S. Copyright Office.
+                  EZ Copyright by THE EZ WAY creates a private evidence record. It does not replace registration with the U.S. Copyright Office.
                   If you want stronger legal standing, keep your source files and register the work officially.
                 </p>
                 <div className="grid sm:grid-cols-3 gap-4 mb-6">
@@ -328,16 +332,7 @@ export default function LandingHero({
         </div>
       </div>
 
-      {/* Footer */}
-      <footer className="bg-neutral-950 border-t border-white/10 py-8">
-        <div className="max-w-7xl mx-auto px-4 text-center">
-          <div className="flex items-center justify-center gap-3 mb-3">
-            <img src="/logo.png" alt="CTS Management Hub" className="w-8 h-8 object-contain" />
-            <span className="font-bold text-white text-lg">CTS Management Hub</span>
-          </div>
-          <p className="text-sm text-white/30">© {new Date().getFullYear()} CTS Management Hub. All rights reserved.</p>
-        </div>
-      </footer>
+      <LegalFooter onNavigate={onLegalNavigate} showBrand />
     </div>
   );
 }

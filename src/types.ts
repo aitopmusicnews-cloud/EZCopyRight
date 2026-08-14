@@ -18,4 +18,6 @@ export interface MusicalWork {
   status: 'registered' | 'pending';
 }
 
-export type Page = 'landing' | 'auth' | 'register' | 'dashboard' | 'certificate';
+export type LegalPageId = 'terms' | 'privacy' | 'refund-policy';
+
+export type Page = 'landing' | 'auth' | 'register' | 'dashboard' | 'certificate' | LegalPageId;
