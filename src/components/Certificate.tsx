@@ -33,8 +33,14 @@ export default function Certificate({ work, onBack, onDashboard, onLegalNavigate
         pixelRatio: 2,
         backgroundColor: '#0a0a0a',
       });
+      const safeTitle = work.title
+        .normalize('NFKD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/[^a-zA-Z0-9]+/g, '-')
+        .replace(/^-+|-+$/g, '')
+        .slice(0, 80) || 'Untitled';
       const link = document.createElement('a');
-      link.download = `EZ-Copyright-Certificate-${work.registrationNumber}.png`;
+      link.download = `EZ-Copyright-${safeTitle}-${work.registrationNumber}.png`;
       link.href = dataUrl;
       link.click();
     } catch (err) {
