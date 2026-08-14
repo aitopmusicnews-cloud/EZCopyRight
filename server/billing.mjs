@@ -76,6 +76,7 @@ export function createStripeBilling(config) {
       const existing = await database.query('SELECT * FROM billing_customers WHERE user_id=$1', [userId]);
       const params = {
         mode: 'subscription',
+        managed_payments: { enabled: false },
         line_items: [{ price: priceId, quantity: 1 }],
         client_reference_id: userId,
         success_url: `${config.appBaseUrl}/?billing=success`,
