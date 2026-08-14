@@ -122,7 +122,15 @@ export async function createWork(userId: string, work: MusicalWork, file?: File)
       headers: upload.headers,
       body: file,
     });
-    if (!uploadResponse.ok) throw new Error('The private audio upload failed. Please try again.');
+    if (!uploadResponse.ok) {
+      const responseText = await uploadResponse.text();
+      const awsCode = responseText.match(/<Code>([^<]+)<\/Code>/)?.[1];
+      throw new Error(
+        awsCode
+          ? `Private audio upload failed: ${awsCode}.`
+          : `Private audio upload failed with status ${uploadResponse.status}.`,
+      );
+    }
     await apiRequest(`/v1/uploads/${encodeURIComponent(upload.uploadId)}/complete`, { method: 'POST' });
     const response = await apiRequest<{ work: MusicalWork }>('/v1/works', {
       method: 'POST',

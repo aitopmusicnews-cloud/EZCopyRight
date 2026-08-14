@@ -249,8 +249,8 @@ export default function RegisterForm({ onBack, onRegister, onLegalNavigate }: Pr
       };
 
       await onRegister(work, file);
-    } catch {
-      setError('An error occurred during registration. Please try again.');
+    } catch (error) {
+      setError(error instanceof Error ? error.message : 'An error occurred during registration. Please try again.');
       setIsProcessing(false);
     }
   };
