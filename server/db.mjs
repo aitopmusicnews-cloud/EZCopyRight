@@ -53,6 +53,25 @@ CREATE INDEX IF NOT EXISTS file_uploads_user_created_idx
 CREATE INDEX IF NOT EXISTS works_user_registered_idx
   ON works (user_id, date_registered DESC);
 
+CREATE TABLE IF NOT EXISTS billing_customers (
+  user_id TEXT PRIMARY KEY,
+  email TEXT NOT NULL,
+  stripe_customer_id TEXT NOT NULL UNIQUE,
+  stripe_subscription_id TEXT UNIQUE,
+  stripe_price_id TEXT,
+  subscription_status VARCHAR(32) NOT NULL DEFAULT 'inactive',
+  current_period_start TIMESTAMPTZ,
+  current_period_end TIMESTAMPTZ,
+  cancel_at_period_end BOOLEAN NOT NULL DEFAULT FALSE,
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS stripe_events (
+  id TEXT PRIMARY KEY,
+  event_type TEXT NOT NULL,
+  processed_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
 CREATE TABLE IF NOT EXISTS policy_consents (
   id UUID PRIMARY KEY,
   user_id TEXT NOT NULL,

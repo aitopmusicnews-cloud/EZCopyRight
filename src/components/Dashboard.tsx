@@ -1,8 +1,9 @@
-import { ArrowLeft, Plus, Fingerprint, Calendar, Music2, Eye, Trash2, Search, FileAudio, Download } from 'lucide-react';
+import { ArrowLeft, Plus, Fingerprint, Calendar, Music2, Eye, Trash2, Search, FileAudio, Download, CreditCard } from 'lucide-react';
 import { useState } from 'react';
 import { formatFileSize } from '../utils/crypto';
 import type { LegalPageId, MusicalWork } from '../types';
 import LegalFooter from './LegalFooter';
+import type { BillingStatus } from '../lib/billing';
 
 interface Props {
   works: MusicalWork[];
@@ -15,9 +16,12 @@ interface Props {
   onDelete: (id: string) => void;
   onSignOut: () => void;
   onLegalNavigate: (page: LegalPageId) => void;
+  billing: BillingStatus | null;
+  onSubscribe: () => void;
+  onManageBilling: () => void;
 }
 
-export default function Dashboard({ works, isLoading, userEmail, onBack, onRegister, onViewCertificate, onDownloadAudio, onDelete, onSignOut, onLegalNavigate }: Props) {
+export default function Dashboard({ works, isLoading, userEmail, onBack, onRegister, onViewCertificate, onDownloadAudio, onDelete, onSignOut, onLegalNavigate, billing, onSubscribe, onManageBilling }: Props) {
   const [search, setSearch] = useState('');
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
 
@@ -62,6 +66,22 @@ export default function Dashboard({ works, isLoading, userEmail, onBack, onRegis
       </div>
 
       <div className="max-w-6xl mx-auto px-4 py-8 sm:py-12">
+        {billing && (
+          <div className={`mb-8 rounded-2xl border p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 ${billing.active ? 'border-emerald-500/20 bg-emerald-500/10' : 'border-orange-500/25 bg-orange-500/10'}`}>
+            <div className="flex items-start gap-3">
+              <CreditCard className={billing.active ? 'text-emerald-400' : 'text-orange-400'} />
+              <div>
+                <p className="font-semibold text-white">{billing.active ? 'EZ Copyright Membership' : '$9.99 monthly membership required'}</p>
+                <p className="text-sm text-white/55">
+                  {billing.active ? `${billing.remaining} of ${billing.limit} registrations remaining this billing month` : 'Includes 5 private copyright evidence registrations each month.'}
+                </p>
+              </div>
+            </div>
+            <button onClick={billing.active ? onManageBilling : onSubscribe} className="rounded-xl bg-orange-600 hover:bg-orange-500 px-4 py-2 text-sm font-medium text-white cursor-pointer">
+              {billing.active ? 'Manage Billing' : 'Subscribe'}
+            </button>
+          </div>
+        )}
         <div className="mb-8">
           <h1 className="text-3xl sm:text-4xl font-bold text-white mb-2" style={{ fontFamily: 'Playfair Display, serif' }}>
             Your Protected Works
@@ -124,6 +144,7 @@ export default function Dashboard({ works, isLoading, userEmail, onBack, onRegis
             <p className="text-white/40 mb-8">Start protecting your music by registering your first work.</p>
             <button
               onClick={onRegister}
+              disabled={Boolean(billing && !billing.active)}
               className="inline-flex items-center gap-2 bg-gradient-to-r from-orange-600 to-amber-600 text-white px-6 py-3 rounded-2xl font-semibold shadow-lg transition hover:scale-105 cursor-pointer"
             >
               <Plus className="w-5 h-5" />

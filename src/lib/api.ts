@@ -31,6 +31,10 @@ export async function apiRequest<T>(path: string, init: RequestInit = {}): Promi
       ? 'Your session expired. Please sign in again.'
       : body?.error === 'work_not_found'
         ? 'That work could not be found.'
+        : body?.error === 'subscription_required'
+          ? 'An active EZ Copyright membership is required.'
+          : body?.error === 'monthly_registration_limit_reached'
+            ? 'You have used all five registrations for this billing month.'
         : 'EZ Copyright could not complete the request. Please try again.';
     throw new Error(message);
   }
