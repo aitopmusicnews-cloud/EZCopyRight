@@ -9,6 +9,7 @@ frontend:
         - export VITE_AWS_REGION="${VITE_AWS_REGION:-us-west-2}"
         - export VITE_COGNITO_USER_POOL_ID="${VITE_COGNITO_USER_POOL_ID:-us-west-2_jJs1JIarh}"
         - export VITE_COGNITO_CLIENT_ID="${VITE_COGNITO_CLIENT_ID:-6j3dpm8g95pa2uuevfuk206qdi}"
+        - export VITE_API_BASE_URL="${VITE_API_BASE_URL:-https://ezcopyright-api.onrender.com}"
         - npm run build
   artifacts:
     baseDirectory: dist

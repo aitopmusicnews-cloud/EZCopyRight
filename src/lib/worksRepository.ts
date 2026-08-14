@@ -1,4 +1,5 @@
 import type { MusicalWork } from '../types';
+import { apiRequest, isApiConfigured } from './api';
 import { supabase } from './supabase';
 
 const STORAGE_KEY = 'ogbeatz_works';
@@ -81,6 +82,11 @@ function toRow(work: MusicalWork, userId: string): WorkRow {
 }
 
 export async function listWorks(userId: string): Promise<MusicalWork[]> {
+  if (isApiConfigured) {
+    const response = await apiRequest<{ works: MusicalWork[] }>('/v1/works');
+    return response.works;
+  }
+
   if (!supabase) {
     return loadLocalWorks().filter((work) => work.userId === userId);
   }
@@ -96,6 +102,14 @@ export async function listWorks(userId: string): Promise<MusicalWork[]> {
 }
 
 export async function createWork(userId: string, work: MusicalWork): Promise<MusicalWork> {
+  if (isApiConfigured) {
+    const response = await apiRequest<{ work: MusicalWork }>('/v1/works', {
+      method: 'POST',
+      body: JSON.stringify(work),
+    });
+    return response.work;
+  }
+
   if (!supabase) {
     const works = loadLocalWorks();
     const nextWork = { ...work, userId };
@@ -114,6 +128,11 @@ export async function createWork(userId: string, work: MusicalWork): Promise<Mus
 }
 
 export async function removeWork(userId: string, workId: string): Promise<void> {
+  if (isApiConfigured) {
+    await apiRequest<void>(`/v1/works/${encodeURIComponent(workId)}`, { method: 'DELETE' });
+    return;
+  }
+
   if (!supabase) {
     const works = loadLocalWorks();
     saveLocalWorks(works.filter((work) => !(work.id === workId && work.userId === userId)));

@@ -5,18 +5,28 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "dev:api": "node --watch server/index.mjs",
     "build": "vite build",
     "postbuild": "node scripts/prepare-static-routes.mjs",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "start:api": "node server/index.mjs",
+    "test:api": "node --test server/test/*.test.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.101.1",
     "clsx": "2.1.1",
+    "cors": "^2.8.5",
+    "express": "^5.1.0",
+    "express-rate-limit": "^8.1.0",
     "html-to-image": "^1.11.13",
+    "helmet": "^8.1.0",
+    "jose": "^6.1.0",
     "lucide-react": "^1.7.0",
+    "pg": "^8.16.3",
     "react": "19.2.3",
     "react-dom": "19.2.3",
-    "tailwind-merge": "3.4.0"
+    "tailwind-merge": "3.4.0",
+    "zod": "^4.1.12"
   },
   "devDependencies": {
     "@tailwindcss/vite": "4.1.17",

@@ -1,0 +1,78 @@
+import pg from 'pg';
+
+const { Pool } = pg;
+
+const migration = `
+CREATE TABLE IF NOT EXISTS works (
+  id UUID PRIMARY KEY,
+  user_id TEXT NOT NULL,
+  idempotency_key UUID NOT NULL,
+  title VARCHAR(200) NOT NULL,
+  artist VARCHAR(200) NOT NULL,
+  co_artists TEXT NOT NULL DEFAULT '',
+  genre VARCHAR(80) NOT NULL,
+  description TEXT NOT NULL DEFAULT '',
+  lyrics TEXT NOT NULL DEFAULT '',
+  date_created DATE NOT NULL,
+  date_registered TIMESTAMPTZ NOT NULL,
+  registration_number VARCHAR(64) NOT NULL UNIQUE,
+  digital_fingerprint CHAR(64) NOT NULL,
+  file_hash CHAR(64) NOT NULL,
+  file_name VARCHAR(255) NOT NULL,
+  file_size BIGINT NOT NULL CHECK (file_size > 0),
+  file_type VARCHAR(120) NOT NULL,
+  status VARCHAR(24) NOT NULL CHECK (status IN ('pending', 'registered')),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  UNIQUE (user_id, idempotency_key)
+);
+
+CREATE INDEX IF NOT EXISTS works_user_registered_idx
+  ON works (user_id, date_registered DESC);
+
+CREATE TABLE IF NOT EXISTS policy_consents (
+  id UUID PRIMARY KEY,
+  user_id TEXT NOT NULL,
+  policy_type VARCHAR(32) NOT NULL CHECK (policy_type IN ('terms', 'privacy', 'refund-policy')),
+  policy_version VARCHAR(32) NOT NULL,
+  accepted_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  request_id UUID NOT NULL,
+  source_flow VARCHAR(32) NOT NULL,
+  UNIQUE (user_id, policy_type, policy_version, source_flow)
+);
+
+CREATE INDEX IF NOT EXISTS policy_consents_user_idx
+  ON policy_consents (user_id, accepted_at DESC);
+
+CREATE TABLE IF NOT EXISTS audit_events (
+  id UUID PRIMARY KEY,
+  request_id UUID NOT NULL,
+  user_id TEXT,
+  action VARCHAR(80) NOT NULL,
+  resource_type VARCHAR(40),
+  resource_id TEXT,
+  metadata JSONB NOT NULL DEFAULT '{}'::jsonb,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS audit_events_user_created_idx
+  ON audit_events (user_id, created_at DESC);
+`;
+
+export function createDatabase({ databaseUrl, databaseSsl }) {
+  if (!databaseUrl) {
+    throw new Error('DATABASE_URL is required to start the EZ Copyright API.');
+  }
+
+  return new Pool({
+    connectionString: databaseUrl,
+    max: 10,
+    idleTimeoutMillis: 30_000,
+    connectionTimeoutMillis: 10_000,
+    ssl: databaseSsl ? { rejectUnauthorized: false } : false,
+  });
+}
+
+export async function runMigrations(database) {
+  await database.query(migration);
+}
