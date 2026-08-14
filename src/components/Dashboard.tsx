@@ -1,7 +1,8 @@
 import { ArrowLeft, Plus, Fingerprint, Calendar, Music2, Eye, Trash2, Search, FileAudio } from 'lucide-react';
 import { useState } from 'react';
 import { formatFileSize } from '../utils/crypto';
-import type { MusicalWork } from '../types';
+import type { LegalPageId, MusicalWork } from '../types';
+import LegalFooter from './LegalFooter';
 
 interface Props {
   works: MusicalWork[];
@@ -12,9 +13,10 @@ interface Props {
   onViewCertificate: (work: MusicalWork) => void;
   onDelete: (id: string) => void;
   onSignOut: () => void;
+  onLegalNavigate: (page: LegalPageId) => void;
 }
 
-export default function Dashboard({ works, isLoading, userEmail, onBack, onRegister, onViewCertificate, onDelete, onSignOut }: Props) {
+export default function Dashboard({ works, isLoading, userEmail, onBack, onRegister, onViewCertificate, onDelete, onSignOut, onLegalNavigate }: Props) {
   const [search, setSearch] = useState('');
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
 
@@ -223,6 +225,7 @@ export default function Dashboard({ works, isLoading, userEmail, onBack, onRegis
           </div>
         )}
       </div>
+      <LegalFooter onNavigate={onLegalNavigate} />
     </div>
   );
 }

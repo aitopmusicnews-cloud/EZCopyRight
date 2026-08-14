@@ -4,7 +4,8 @@ import RegisterForm from './components/RegisterForm';
 import Certificate from './components/Certificate';
 import Dashboard from './components/Dashboard';
 import AuthScreen from './components/AuthScreen';
-import type { MusicalWork, Page } from './types';
+import LegalPage from './components/LegalPage';
+import type { LegalPageId, MusicalWork, Page } from './types';
 import {
   confirmSignUp,
   getAuthMode,
@@ -17,8 +18,21 @@ import {
 } from './lib/auth';
 import { createWork, listWorks, removeWork } from './lib/worksRepository';
 
+const legalPathByPage: Record<LegalPageId, string> = {
+  terms: '/terms',
+  privacy: '/privacy',
+  'refund-policy': '/refund-policy',
+};
+
+function pageFromPath(pathname: string): Page {
+  const normalizedPath = pathname.replace(/\/+$/, '') || '/';
+  const legalPage = (Object.entries(legalPathByPage) as Array<[LegalPageId, string]>)
+    .find(([, path]) => path === normalizedPath)?.[0];
+  return legalPage ?? 'landing';
+}
+
 export default function App() {
-  const [page, setPage] = useState<Page>('landing');
+  const [page, setPage] = useState<Page>(() => pageFromPath(window.location.pathname));
   const [works, setWorks] = useState<MusicalWork[]>([]);
   const [selectedWork, setSelectedWork] = useState<MusicalWork | null>(null);
   const [authUser, setAuthUser] = useState<AuthUser | null>(null);
@@ -27,6 +41,27 @@ export default function App() {
   const [worksLoading, setWorksLoading] = useState(false);
   const [appError, setAppError] = useState('');
   const [authTargetPage, setAuthTargetPage] = useState<'register' | 'dashboard'>('register');
+
+  const navigateLegal = (target: LegalPageId) => {
+    const path = legalPathByPage[target];
+    if (window.location.pathname !== path) {
+      window.history.pushState({}, '', path);
+    }
+    setPage(target);
+  };
+
+  const navigateHome = () => {
+    if (window.location.pathname !== '/') {
+      window.history.pushState({}, '', '/');
+    }
+    setPage('landing');
+  };
+
+  useEffect(() => {
+    const handlePopState = () => setPage(pageFromPath(window.location.pathname));
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
 
   useEffect(() => {
     let mounted = true;
@@ -146,7 +181,7 @@ export default function App() {
     await signOut();
     setAuthUser(null);
     setSelectedWork(null);
-    setPage('landing');
+    navigateHome();
   };
 
   useEffect(() => {
@@ -192,6 +227,7 @@ export default function App() {
             onSignOut={() => {
               void handleSignOut();
             }}
+            onLegalNavigate={navigateLegal}
           />
         </>
       );
@@ -204,21 +240,24 @@ export default function App() {
           onSignIn={handleSignIn}
           onSignUp={handleSignUp}
           onConfirmSignUp={handleConfirmSignUp}
+          onLegalNavigate={navigateLegal}
         />
       );
     case 'register':
       return (
         <RegisterForm
-          onBack={() => setPage('landing')}
+          onBack={navigateHome}
           onRegister={handleRegister}
+          onLegalNavigate={navigateLegal}
         />
       );
     case 'certificate':
       return selectedWork ? (
         <Certificate
           work={selectedWork}
-          onBack={() => setPage('landing')}
+          onBack={navigateHome}
           onDashboard={() => setPage('dashboard')}
+          onLegalNavigate={navigateLegal}
         />
       ) : null;
     case 'dashboard':
@@ -227,7 +266,7 @@ export default function App() {
           works={works}
           isLoading={worksLoading}
           userEmail={authUser?.email ?? null}
-          onBack={() => setPage('landing')}
+          onBack={navigateHome}
           onRegister={() => navigateProtected('register')}
           onViewCertificate={handleViewCertificate}
           onDelete={(id) => {
@@ -236,6 +275,17 @@ export default function App() {
           onSignOut={() => {
             void handleSignOut();
           }}
+          onLegalNavigate={navigateLegal}
+        />
+      );
+    case 'terms':
+    case 'privacy':
+    case 'refund-policy':
+      return (
+        <LegalPage
+          page={page}
+          onBack={navigateHome}
+          onNavigate={navigateLegal}
         />
       );
     default:

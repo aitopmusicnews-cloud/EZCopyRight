@@ -13,11 +13,13 @@ import {
   ExternalLink,
 } from 'lucide-react';
 import { generateFileHash, generateRegistrationNumber, generateDigitalFingerprint, formatFileSize } from '../utils/crypto';
-import type { MusicalWork } from '../types';
+import type { LegalPageId, MusicalWork } from '../types';
+import LegalFooter from './LegalFooter';
 
 interface Props {
   onBack: () => void;
   onRegister: (work: MusicalWork) => Promise<void>;
+  onLegalNavigate: (page: LegalPageId) => void;
 }
 
 const GENRES = [
@@ -40,7 +42,7 @@ function extractSection(text: string, headingPattern: string): string {
   return text.match(expression)?.[1]?.trim() ?? '';
 }
 
-export default function RegisterForm({ onBack, onRegister }: Props) {
+export default function RegisterForm({ onBack, onRegister, onLegalNavigate }: Props) {
   const [title, setTitle] = useState('');
   const [artist, setArtist] = useState('');
   const [coArtists, setCoArtists] = useState('');
@@ -606,6 +608,7 @@ export default function RegisterForm({ onBack, onRegister }: Props) {
           </p>
         </form>
       </div>
+      <LegalFooter onNavigate={onLegalNavigate} />
     </div>
   );
 }

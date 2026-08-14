@@ -1,5 +1,7 @@
 import type {} from 'react';
 import { Shield, Fingerprint, Award, Zap, Music, Lock, ChevronRight, Star, TriangleAlert, ExternalLink } from 'lucide-react';
+import type { LegalPageId } from '../types';
+import LegalFooter from './LegalFooter';
 
 interface Props {
   onNavigate: (page: 'register' | 'dashboard') => void;
@@ -9,6 +11,7 @@ interface Props {
   authModeLabel: string;
   onAuthAction: () => void;
   onSignOut: () => void;
+  onLegalNavigate: (page: LegalPageId) => void;
 }
 
 export default function LandingHero({
@@ -19,6 +22,7 @@ export default function LandingHero({
   authModeLabel,
   onAuthAction,
   onSignOut,
+  onLegalNavigate,
 }: Props) {
   return (
     <div className="min-h-screen">
@@ -328,16 +332,7 @@ export default function LandingHero({
         </div>
       </div>
 
-      {/* Footer */}
-      <footer className="bg-neutral-950 border-t border-white/10 py-8">
-        <div className="max-w-7xl mx-auto px-4 text-center">
-          <div className="flex items-center justify-center gap-3 mb-3">
-            <img src="/ez-way-logo.png" alt="THE EZ WAY" className="w-8 h-8 object-contain" />
-            <span className="font-bold text-white text-lg">THE EZ WAY</span>
-          </div>
-          <p className="text-sm text-white/30">© {new Date().getFullYear()} THE EZ WAY. All rights reserved.</p>
-        </div>
-      </footer>
+      <LegalFooter onNavigate={onLegalNavigate} showBrand />
     </div>
   );
 }

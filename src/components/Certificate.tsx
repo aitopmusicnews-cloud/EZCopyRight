@@ -3,15 +3,17 @@ import { Shield, Download, ArrowLeft, Copy, Check, Fingerprint, FileText, Extern
 import { useState } from 'react';
 import { toPng } from 'html-to-image';
 import { formatFileSize } from '../utils/crypto';
-import type { MusicalWork } from '../types';
+import type { LegalPageId, MusicalWork } from '../types';
+import LegalFooter from './LegalFooter';
 
 interface Props {
   work: MusicalWork;
   onBack: () => void;
   onDashboard: () => void;
+  onLegalNavigate: (page: LegalPageId) => void;
 }
 
-export default function Certificate({ work, onBack, onDashboard }: Props) {
+export default function Certificate({ work, onBack, onDashboard, onLegalNavigate }: Props) {
   const certRef = useRef<HTMLDivElement>(null);
   const [copied, setCopied] = useState<string | null>(null);
   const [downloading, setDownloading] = useState(false);
@@ -251,6 +253,7 @@ export default function Certificate({ work, onBack, onDashboard }: Props) {
           </button>
         </div>
       </div>
+      <LegalFooter onNavigate={onLegalNavigate} />
     </div>
   );
 }
