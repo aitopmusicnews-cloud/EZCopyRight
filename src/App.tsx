@@ -302,8 +302,12 @@ export default function App() {
           }}
           onLegalNavigate={navigateLegal}
           billing={billing}
-          onSubscribe={() => { void startCheckout(); }}
-          onManageBilling={() => { void openBillingPortal(); }}
+          onSubscribe={() => {
+            void startCheckout().catch((error) => setAppError(error instanceof Error ? error.message : 'Checkout could not be opened.'));
+          }}
+          onManageBilling={() => {
+            void openBillingPortal().catch((error) => setAppError(error instanceof Error ? error.message : 'Billing could not be opened.'));
+          }}
         />
       );
     case 'terms':

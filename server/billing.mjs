@@ -60,7 +60,7 @@ export function createStripeBilling(config) {
         metadata: { cognito_user_id: userId, application: 'ez_copyright' },
       };
       if (existing.rows[0]?.stripe_customer_id) params.customer = existing.rows[0].stripe_customer_id;
-      else {
+      else if (email) {
         params.customer_email = email;
       }
       return requireStripe().checkout.sessions.create(params, { idempotencyKey: `checkout-${userId}-${Date.now()}` });
