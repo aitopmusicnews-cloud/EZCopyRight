@@ -154,7 +154,7 @@ export default function LandingHero({
               {[
                 { value: '256-bit', label: 'SHA Encryption' },
                 { value: '<5s', label: 'Certificate Generation' },
-                { value: 'Local', label: 'Processed On Your Device' },
+                { value: 'Private', label: 'Encrypted Audio Storage' },
               ].map((stat, i) => (
                 <div key={i} className="text-center">
                   <div className="text-2xl sm:text-3xl font-bold text-white mb-1">{stat.value}</div>

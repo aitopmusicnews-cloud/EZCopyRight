@@ -1,4 +1,4 @@
-import { ArrowLeft, Plus, Fingerprint, Calendar, Music2, Eye, Trash2, Search, FileAudio } from 'lucide-react';
+import { ArrowLeft, Plus, Fingerprint, Calendar, Music2, Eye, Trash2, Search, FileAudio, Download } from 'lucide-react';
 import { useState } from 'react';
 import { formatFileSize } from '../utils/crypto';
 import type { LegalPageId, MusicalWork } from '../types';
@@ -11,12 +11,13 @@ interface Props {
   onBack: () => void;
   onRegister: () => void;
   onViewCertificate: (work: MusicalWork) => void;
+  onDownloadAudio: (id: string) => void;
   onDelete: (id: string) => void;
   onSignOut: () => void;
   onLegalNavigate: (page: LegalPageId) => void;
 }
 
-export default function Dashboard({ works, isLoading, userEmail, onBack, onRegister, onViewCertificate, onDelete, onSignOut, onLegalNavigate }: Props) {
+export default function Dashboard({ works, isLoading, userEmail, onBack, onRegister, onViewCertificate, onDownloadAudio, onDelete, onSignOut, onLegalNavigate }: Props) {
   const [search, setSearch] = useState('');
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
 
@@ -203,6 +204,15 @@ export default function Dashboard({ works, isLoading, userEmail, onBack, onRegis
                     </div>
                   ) : (
                     <>
+                      {work.hasStoredAudio && (
+                        <button
+                          onClick={() => onDownloadAudio(work.id)}
+                          className="flex items-center gap-1.5 text-xs text-white/60 hover:text-white px-3 py-1.5 rounded-lg hover:bg-white/10 transition cursor-pointer"
+                        >
+                          <Download className="w-3.5 h-3.5" />
+                          Download Original
+                        </button>
+                      )}
                       <button
                         onClick={() => setDeleteConfirm(work.id)}
                         className="flex items-center gap-1.5 text-xs text-white/30 hover:text-red-400 px-3 py-1.5 rounded-lg hover:bg-red-500/10 transition cursor-pointer"

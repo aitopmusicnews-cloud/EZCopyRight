@@ -181,9 +181,9 @@ function Privacy() {
           <li><strong className="text-white/80">Communications:</strong> messages and information you provide when requesting support, privacy assistance, or account changes.</li>
         </List>
         <p>
-          Some current features calculate a file hash locally in your browser. When cloud upload is enabled, files you
-          choose to submit will be transmitted to our storage providers. The upload screen will identify the applicable
-          behavior before submission.
+          EZ Copyright calculates a file hash locally in your browser, then transmits the audio file you submit through
+          an encrypted connection to private cloud storage. Access to stored audio uses short-lived signed links tied to
+          your authenticated account.
         </p>
       </Section>
 

@@ -1,13 +1,15 @@
 import { createApp } from './app.mjs';
 import { loadConfig } from './config.mjs';
 import { createDatabase, runMigrations } from './db.mjs';
+import { createS3Storage } from './storage.mjs';
 
 const config = loadConfig();
 const database = createDatabase(config);
+const storage = createS3Storage(config);
 
 await runMigrations(database);
 
-const app = createApp({ database, config });
+const app = createApp({ database, config, storage });
 const server = app.listen(config.port, '0.0.0.0', () => {
   console.log(JSON.stringify({
     level: 'info',

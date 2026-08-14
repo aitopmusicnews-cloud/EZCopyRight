@@ -18,6 +18,7 @@ export function loadConfig(environment = process.env) {
   const userPoolId = environment.COGNITO_USER_POOL_ID?.trim() || DEFAULT_COGNITO_USER_POOL_ID;
   const clientId = environment.COGNITO_CLIENT_ID?.trim() || DEFAULT_COGNITO_CLIENT_ID;
   const databaseUrl = environment.DATABASE_URL?.trim() || '';
+  const s3Bucket = environment.S3_BUCKET?.trim() || '';
 
   return {
     nodeEnvironment,
@@ -30,5 +31,8 @@ export function loadConfig(environment = process.env) {
     cognitoClientId: clientId,
     allowedOrigins: parseOrigins(environment.CORS_ALLOWED_ORIGINS || '', nodeEnvironment),
     policyVersion: environment.POLICY_VERSION?.trim() || '2026-08-13',
+    awsRegion: environment.AWS_REGION?.trim() || region,
+    s3Bucket,
+    maxUploadBytes: Number.parseInt(environment.MAX_UPLOAD_BYTES || '536870912', 10),
   };
 }

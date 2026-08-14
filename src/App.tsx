@@ -16,7 +16,7 @@ import {
   subscribeToAuthChanges,
   type AuthUser,
 } from './lib/auth';
-import { createWork, listWorks, removeWork } from './lib/worksRepository';
+import { createWork, getWorkAudioUrl, listWorks, removeWork } from './lib/worksRepository';
 
 const legalPathByPage: Record<LegalPageId, string> = {
   terms: '/terms',
@@ -127,7 +127,7 @@ export default function App() {
     setPage(target);
   };
 
-  const handleRegister = async (work: MusicalWork) => {
+  const handleRegister = async (work: MusicalWork, file: File) => {
     if (!authUser) {
       setAuthTargetPage('register');
       setPage('auth');
@@ -135,7 +135,7 @@ export default function App() {
     }
 
     setAppError('');
-    const savedWork = await createWork(authUser.id, work);
+    const savedWork = await createWork(authUser.id, work, file);
     setWorks((prev) => [savedWork, ...prev]);
     setSelectedWork(savedWork);
     setPage('certificate');
@@ -152,6 +152,16 @@ export default function App() {
   const handleViewCertificate = (work: MusicalWork) => {
     setSelectedWork(work);
     setPage('certificate');
+  };
+
+  const handleDownloadAudio = async (id: string) => {
+    setAppError('');
+    try {
+      const url = await getWorkAudioUrl(id);
+      window.location.assign(url);
+    } catch (error) {
+      setAppError(error instanceof Error ? error.message : 'The stored audio could not be downloaded.');
+    }
   };
 
   const handleAuthSuccess = (user: AuthUser) => {
@@ -269,6 +279,7 @@ export default function App() {
           onBack={navigateHome}
           onRegister={() => navigateProtected('register')}
           onViewCertificate={handleViewCertificate}
+          onDownloadAudio={(id) => { void handleDownloadAudio(id); }}
           onDelete={(id) => {
             void handleDelete(id);
           }}
