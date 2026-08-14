@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ArrowLeft, LockKeyhole, Mail, MailCheck, Shield, ShieldAlert } from 'lucide-react';
+import { ArrowLeft, LockKeyhole, Mail, MailCheck, ShieldAlert } from 'lucide-react';
 import type { AuthMode } from '../lib/auth';
 
 interface Props {
@@ -92,7 +92,7 @@ export default function AuthScreen({
             <ArrowLeft className="w-5 h-5" />
           </button>
           <div className="flex items-center gap-2">
-            <Shield className="w-5 h-5 text-orange-400" />
+            <img src="/ez-way-logo.png" alt="THE EZ WAY" className="w-7 h-7 object-contain" />
             <span className="font-bold text-white">Account Access</span>
           </div>
         </div>
