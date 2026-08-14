@@ -34,5 +34,10 @@ export function loadConfig(environment = process.env) {
     awsRegion: environment.AWS_REGION?.trim() || region,
     s3Bucket,
     maxUploadBytes: Number.parseInt(environment.MAX_UPLOAD_BYTES || '536870912', 10),
+    appBaseUrl: (environment.APP_BASE_URL || 'https://main.dfhj64edk9o6n.amplifyapp.com').trim().replace(/\/$/, ''),
+    stripeSecretKey: environment.STRIPE_SECRET_KEY?.trim() || '',
+    stripeWebhookSecret: environment.STRIPE_WEBHOOK_SECRET?.trim() || '',
+    stripePriceId: environment.STRIPE_PRICE_ID?.trim() || '',
+    monthlyRegistrationLimit: Number.parseInt(environment.MONTHLY_REGISTRATION_LIMIT || '5', 10),
   };
 }

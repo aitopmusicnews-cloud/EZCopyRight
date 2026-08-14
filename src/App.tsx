@@ -17,6 +17,7 @@ import {
   type AuthUser,
 } from './lib/auth';
 import { createWork, getWorkAudioUrl, listWorks, removeWork } from './lib/worksRepository';
+import { getBillingStatus, openBillingPortal, startCheckout, type BillingStatus } from './lib/billing';
 
 const legalPathByPage: Record<LegalPageId, string> = {
   terms: '/terms',
@@ -41,6 +42,7 @@ export default function App() {
   const [worksLoading, setWorksLoading] = useState(false);
   const [appError, setAppError] = useState('');
   const [authTargetPage, setAuthTargetPage] = useState<'register' | 'dashboard'>('register');
+  const [billing, setBilling] = useState<BillingStatus | null>(null);
 
   const navigateLegal = (target: LegalPageId) => {
     const path = legalPathByPage[target];
@@ -117,11 +119,23 @@ export default function App() {
     };
   }, [authUser]);
 
+  useEffect(() => {
+    if (!authUser) {
+      setBilling(null);
+      return;
+    }
+    getBillingStatus().then(setBilling).catch(() => setBilling(null));
+  }, [authUser]);
+
   const navigateProtected = (target: 'register' | 'dashboard') => {
     setAppError('');
     if (!authUser) {
       setAuthTargetPage(target);
       setPage('auth');
+      return;
+    }
+    if (target === 'register' && billing && !billing.active) {
+      setPage('dashboard');
       return;
     }
     setPage(target);
@@ -287,6 +301,9 @@ export default function App() {
             void handleSignOut();
           }}
           onLegalNavigate={navigateLegal}
+          billing={billing}
+          onSubscribe={() => { void startCheckout(); }}
+          onManageBilling={() => { void openBillingPortal(); }}
         />
       );
     case 'terms':

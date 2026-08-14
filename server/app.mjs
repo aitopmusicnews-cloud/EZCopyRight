@@ -98,7 +98,13 @@ async function recordAudit(database, request, action, resourceType, resourceId, 
   );
 }
 
-export function createApp({ database, config, storage, verifyToken = createCognitoVerifier(config) }) {
+export function createApp({
+  database,
+  config,
+  storage,
+  billing = { status: async () => ({ active: true, remaining: 5, limit: 5 }) },
+  verifyToken = createCognitoVerifier(config),
+}) {
   const app = express();
   app.set('trust proxy', 1);
   app.disable('x-powered-by');
@@ -134,6 +140,16 @@ export function createApp({ database, config, storage, verifyToken = createCogni
       error.statusCode = 403;
       callback(error);
     },
+  }));
+  app.post('/v1/stripe/webhook', express.raw({ type: 'application/json', limit: '1mb' }), asyncRoute(async (request, response) => {
+    try {
+      const event = billing.constructEvent(request.body, request.get('stripe-signature'));
+      await billing.processEvent(database, event);
+      response.json({ received: true });
+    } catch (error) {
+      console.error(JSON.stringify({ level: 'error', message: 'Stripe webhook rejected', requestId: request.id }));
+      response.status(400).json({ error: 'invalid_stripe_webhook', requestId: request.id });
+    }
   }));
   app.use(express.json({ limit: '1mb' }));
   app.use(rateLimit({
@@ -183,7 +199,42 @@ export function createApp({ database, config, storage, verifyToken = createCogni
     response.json({ id: request.auth.userId, email: request.auth.email });
   });
 
+  app.get('/v1/billing/status', authenticate, asyncRoute(async (request, response) => {
+    response.json(await billing.status(database, request.auth.userId));
+  }));
+
+  app.post('/v1/billing/checkout', authenticate, writeLimiter, asyncRoute(async (request, response) => {
+    const session = await billing.createCheckout({
+      database, userId: request.auth.userId, email: request.auth.email,
+    });
+    await recordAudit(database, request, 'billing.checkout_created', 'checkout', session.id);
+    response.status(201).json({ url: session.url });
+  }));
+
+  app.post('/v1/billing/portal', authenticate, writeLimiter, asyncRoute(async (request, response) => {
+    const session = await billing.createPortal({ database, userId: request.auth.userId });
+    if (!session) {
+      response.status(404).json({ error: 'billing_customer_not_found', requestId: request.id });
+      return;
+    }
+    response.status(201).json({ url: session.url });
+  }));
+
+  async function requireRegistrationAllowance(request, response) {
+    const status = await billing.status(database, request.auth.userId);
+    if (!status.active) {
+      response.status(402).json({ error: 'subscription_required', billing: status, requestId: request.id });
+      return false;
+    }
+    if (status.remaining < 1) {
+      response.status(429).json({ error: 'monthly_registration_limit_reached', billing: status, requestId: request.id });
+      return false;
+    }
+    return true;
+  }
+
   app.post('/v1/uploads', authenticate, writeLimiter, asyncRoute(async (request, response) => {
+    if (!await requireRegistrationAllowance(request, response)) return;
     const upload = uploadSchema.parse(request.body);
     if (upload.fileSize > config.maxUploadBytes) {
       response.status(413).json({ error: 'file_too_large', maxBytes: config.maxUploadBytes, requestId: request.id });
@@ -266,6 +317,7 @@ export function createApp({ database, config, storage, verifyToken = createCogni
   }));
 
   app.post('/v1/works', authenticate, writeLimiter, asyncRoute(async (request, response) => {
+    if (!await requireRegistrationAllowance(request, response)) return;
     const work = workSchema.parse(request.body);
     const uploadResult = await database.query(
       `SELECT * FROM file_uploads WHERE id = $1 AND user_id = $2 AND status = 'ready'`,
