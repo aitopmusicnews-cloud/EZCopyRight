@@ -18,15 +18,26 @@ export function loadConfig(environment = process.env) {
   const userPoolId = environment.COGNITO_USER_POOL_ID?.trim() || DEFAULT_COGNITO_USER_POOL_ID;
   const clientId = environment.COGNITO_CLIENT_ID?.trim() || DEFAULT_COGNITO_CLIENT_ID;
   const databaseUrl = environment.DATABASE_URL?.trim() || '';
+  const dbHost = environment.DB_HOST?.trim() || '';
+  const dbPort = Number.parseInt(environment.DB_PORT || '5432', 10);
+  const dbName = environment.DB_NAME?.trim() || '';
+  const dbUser = environment.DB_USER?.trim() || '';
+  const dbPassword = environment.DB_PASSWORD || '';
   const s3Bucket = environment.S3_BUCKET?.trim() || '';
+  const databaseSsl = environment.DATABASE_SSL === 'false'
+    ? false
+    : Boolean(databaseUrl || dbHost) && !databaseUrl.includes('localhost') && !databaseUrl.includes('127.0.0.1');
 
   return {
     nodeEnvironment,
     port: Number.parseInt(environment.PORT || '10000', 10),
     databaseUrl,
-    databaseSsl: environment.DATABASE_SSL === 'false'
-      ? false
-      : !databaseUrl.includes('localhost') && !databaseUrl.includes('127.0.0.1'),
+    databaseSsl,
+    dbHost,
+    dbPort,
+    dbName,
+    dbUser,
+    dbPassword,
     cognitoIssuer: `https://cognito-idp.${region}.amazonaws.com/${userPoolId}`,
     cognitoClientId: clientId,
     allowedOrigins: parseOrigins(environment.CORS_ALLOWED_ORIGINS || '', nodeEnvironment),
