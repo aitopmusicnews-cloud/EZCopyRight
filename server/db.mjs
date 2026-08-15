@@ -101,17 +101,41 @@ CREATE INDEX IF NOT EXISTS audit_events_user_created_idx
   ON audit_events (user_id, created_at DESC);
 `;
 
-export function createDatabase({ databaseUrl, databaseSsl }) {
-  if (!databaseUrl) {
-    throw new Error('DATABASE_URL is required to start the EZ Copyright API.');
+export function createDatabase({
+  databaseUrl,
+  databaseSsl,
+  dbHost,
+  dbPort,
+  dbName,
+  dbUser,
+  dbPassword,
+}) {
+  const ssl = databaseSsl ? { rejectUnauthorized: false } : false;
+
+  if (databaseUrl) {
+    return new Pool({
+      connectionString: databaseUrl,
+      max: 10,
+      idleTimeoutMillis: 30_000,
+      connectionTimeoutMillis: 10_000,
+      ssl,
+    });
+  }
+
+  if (!dbHost || !dbName || !dbUser || !dbPassword) {
+    throw new Error('DATABASE_URL or DB_HOST/DB_NAME/DB_USER/DB_PASSWORD is required to start the EZ Copyright API.');
   }
 
   return new Pool({
-    connectionString: databaseUrl,
+    host: dbHost,
+    port: dbPort || 5432,
+    database: dbName,
+    user: dbUser,
+    password: dbPassword,
     max: 10,
     idleTimeoutMillis: 30_000,
     connectionTimeoutMillis: 10_000,
-    ssl: databaseSsl ? { rejectUnauthorized: false } : false,
+    ssl,
   });
 }
 
