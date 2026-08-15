@@ -1,0 +1,14 @@
+.git
+.github
+node_modules
+dist
+infrastructure/node_modules
+infrastructure/cdk.out
+*.log
+.env
+.env.*
+README.md
+docs
+supabase
+src
+public
