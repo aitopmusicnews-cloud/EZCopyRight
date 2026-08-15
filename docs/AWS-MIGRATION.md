@@ -15,6 +15,8 @@ The infrastructure defaults to `desiredCount=0`. The first deployment provisions
 
 RDS is private, encrypted, deletion-protected, backed up for seven days, and removed only by snapshot. The Fargate API runs in private subnets. API Gateway reaches the internal load balancer through a VPC Link.
 
+The final database copy must be done during a brief write freeze. A rehearsal copy may be performed while Render is live, but do not use that rehearsal as the final cutover database because new records could be created afterward.
+
 ## 1. Identify the existing S3 bucket
 
 Use the S3 bucket already configured as `S3_BUCKET` on the current production API. Do not create a replacement bucket; existing customer audio object keys are stored in PostgreSQL and must continue to resolve against the same bucket.
@@ -41,7 +43,7 @@ npx cdk deploy EzCopyrightProduction \
 
 Save the CloudFormation outputs. They include the API URL, RDS secret ARN, Stripe secret ARN, temporary Render source database secret ARN, and migration task details.
 
-## 3. Copy the two existing production secrets into AWS Secrets Manager
+## 3. Copy the existing production secrets into AWS Secrets Manager
 
 Do not commit these values to GitHub.
 
@@ -64,9 +66,11 @@ Update **RenderSourceDatabaseSecret** so its JSON contains the current Render Po
 
 The Render database URL is temporary migration material. Delete or rotate this secret after the migration is fully complete.
 
-## 4. Copy Render PostgreSQL into private RDS
+## 4. Optional rehearsal database copy
 
-From AWS CloudShell or any shell with AWS CLI credentials:
+You may run the migration task once while Render is still live to prove connectivity and estimate the cutover procedure. Treat this only as a rehearsal.
+
+From the repository root in AWS CloudShell or any shell with AWS CLI credentials:
 
 ```bash
 bash scripts/aws-run-db-migration.sh
@@ -83,9 +87,23 @@ The one-off Fargate task performs a PostgreSQL 17 custom-format dump and restore
 
 The task exits non-zero if any table count differs.
 
-## 5. Start one AWS API task
+## 5. Final database cutover with a write freeze
 
-After the migration passes:
+Before the final copy, temporarily stop or suspend the Render API so it cannot accept customer writes or Stripe webhook writes while the snapshot is being taken. The Amplify frontend may show API errors during this short maintenance window; that is preferable to diverging databases.
+
+With the Render API stopped, run the migration again from the repository root:
+
+```bash
+bash scripts/aws-run-db-migration.sh
+```
+
+Do not proceed unless the migration task reports matching row counts for every table.
+
+Keep the Render PostgreSQL database itself available. Only the API needs to be stopped for the write freeze.
+
+## 6. Start one AWS API task
+
+After the final migration passes:
 
 ```bash
 cd infrastructure
@@ -110,7 +128,9 @@ Expected response:
 {"status":"ready"}
 ```
 
-## 6. Point Amplify to the AWS API
+If AWS health does not pass, restart the Render API before allowing any AWS writes. At this point the Render database is still the safe rollback source because the AWS API has not yet received customer traffic.
+
+## 7. Point Amplify to the AWS API
 
 In AWS Amplify Hosting, set the production branch environment variable:
 
@@ -118,11 +138,11 @@ In AWS Amplify Hosting, set the production branch environment variable:
 VITE_API_BASE_URL=<ApiUrl output from EzCopyrightProduction>
 ```
 
-Redeploy the `main` branch and verify sign-in, dashboard loading, upload, download, evidence-record creation, billing status, and billing portal.
+Redeploy the `main` branch and verify sign-in and dashboard loading before creating new records.
 
-Do not remove the Render API yet.
+The migration branch intentionally removes the old Render fallback. An Amplify production build will fail if `VITE_API_BASE_URL` is missing, preventing an accidental silent return to Render.
 
-## 7. Move Stripe webhook delivery to AWS
+## 8. Move Stripe webhook delivery to AWS
 
 Update the live Stripe webhook endpoint from:
 
@@ -147,7 +167,7 @@ Keep these event types enabled:
 
 If Stripe creates a new webhook signing secret when the endpoint changes, update `STRIPE_WEBHOOK_SECRET` in AWS Secrets Manager and force a new ECS deployment before testing billing.
 
-## 8. Production smoke test
+## 9. Production smoke test
 
 Verify all of the following against the Amplify site:
 
@@ -155,20 +175,21 @@ Verify all of the following against the Amplify site:
 2. Existing evidence records appear.
 3. Existing stored audio downloads successfully.
 4. New audio upload completes.
-5. New evidence record is created and persisted.
+5. New evidence record is created and persists after a page reload.
 6. Billing status loads.
 7. Subscribe opens the live $9.99/month Stripe Checkout.
 8. Customer Portal opens for an existing Stripe customer.
 9. Stripe webhook delivery returns HTTP 2xx.
 10. `/health/ready` returns HTTP 200.
 
-## 9. Decommission Render only after the smoke test
+Once new customer writes are accepted by AWS, do not point traffic back to the old Render database without first reconciling those AWS writes. The simple rollback window ends when AWS becomes the system of record.
 
-After at least one successful AWS production session and successful Stripe webhook delivery:
+## 10. Decommission Render only after the smoke test
+
+After a successful AWS production session and successful Stripe webhook delivery:
 
 - disable Render API auto-deploy
-- keep Render API available briefly as rollback protection
-- take a final Render PostgreSQL export
+- take a final archival Render PostgreSQL export
 - suspend/delete the Render API
 - suspend/delete `ez-copyright-db`
 - remove the broken Render frontend service if it is still present
@@ -176,12 +197,12 @@ After at least one successful AWS production session and successful Stripe webho
 
 Do **not** delete the existing AWS S3 bucket, Cognito user pool, or Amplify app. They are part of the retained AWS production system.
 
-## Rollback
+## Rollback boundaries
 
-Before Render is decommissioned, rollback is simple:
+Before AWS accepts customer writes, rollback is straightforward:
 
-1. Set Amplify `VITE_API_BASE_URL` back to `https://ezcopyright-api.onrender.com`.
-2. Point the Stripe webhook endpoint back to the Render API.
-3. Redeploy Amplify.
+1. Restart the Render API if it was stopped.
+2. Keep Amplify pointed at the Render API or set `VITE_API_BASE_URL` back to `https://ezcopyright-api.onrender.com` on the currently deployed production revision.
+3. Keep or restore the Stripe webhook endpoint to the Render API.
 
-Because the AWS cutover is performed only after the Render database copy completes, Render remains the rollback source until final decommissioning.
+After AWS accepts new customer writes, RDS is the system of record. A rollback to Render at that point requires a reverse data migration or reconciliation; do not switch the frontend back to the old Render database blindly.
