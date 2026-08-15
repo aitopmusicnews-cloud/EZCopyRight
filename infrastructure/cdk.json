@@ -5,6 +5,7 @@
     "cognitoRegion": "us-west-2",
     "cognitoUserPoolId": "us-west-2_jJs1JIarh",
     "cognitoClientId": "6j3dpm8g95pa2uuevfuk206qdi",
+    "s3BucketName": "ez-copyright-existing-bucket-name-required",
     "stripePriceId": "price_1U4DsPIuW4J4gd1q19YI2MO3",
     "monthlyRegistrationLimit": "5",
     "desiredCount": "0",
