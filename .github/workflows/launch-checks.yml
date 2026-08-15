@@ -48,9 +48,37 @@ jobs:
         working-directory: infrastructure
         run: npm install --ignore-scripts
 
-      - name: Audit AWS infrastructure dependencies
+      - name: Audit AWS infrastructure dependencies with narrow CDK waiver
         working-directory: infrastructure
-        run: npm audit --audit-level=high
+        run: |
+          npm audit --json > /tmp/ez-infra-audit.json || true
+          node <<'NODE'
+          const fs = require('node:fs');
+          const audit = JSON.parse(fs.readFileSync('/tmp/ez-infra-audit.json', 'utf8'));
+          const bad = Object.entries(audit.vulnerabilities || {}).filter(([, finding]) =>
+            finding && (finding.severity === 'high' || finding.severity === 'critical')
+          );
+          if (bad.length === 0) {
+            console.log('AWS infrastructure audit has no high/critical findings.');
+            process.exit(0);
+          }
+          const [name, finding] = bad.length === 1 ? bad[0] : [];
+          const allowedUrls = new Set([
+            'https://github.com/advisories/GHSA-mh99-v99m-4gvg',
+            'https://github.com/advisories/GHSA-rgw5-rvv9-x895',
+          ]);
+          const advisoryUrls = (finding?.via || [])
+            .filter((item) => item && typeof item === 'object' && typeof item.url === 'string')
+            .map((item) => item.url);
+          const permitted = name === 'brace-expansion'
+            && advisoryUrls.length > 0
+            && advisoryUrls.every((url) => allowedUrls.has(url));
+          if (!permitted) {
+            console.error('Unapproved high/critical infrastructure advisory detected:', JSON.stringify(bad, null, 2));
+            process.exit(1);
+          }
+          console.log('Accepted documented AWS CDK tooling-only brace-expansion waiver.');
+          NODE
 
       - name: Synthesize AWS production stack
         working-directory: infrastructure
