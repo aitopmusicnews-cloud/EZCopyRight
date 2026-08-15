@@ -15,8 +15,5 @@
   },
   "devDependencies": {
     "aws-cdk": "2.1133.0"
-  },
-  "overrides": {
-    "brace-expansion": "5.0.9"
   }
 }
