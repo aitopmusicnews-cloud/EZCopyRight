@@ -105,7 +105,7 @@ export class EzCopyrightAwsStack extends Stack {
       publicLoadBalancer: false,
       openListener: false,
       assignPublicIp: false,
-      desiredCount,
+      desiredCount: Math.max(1, desiredCount),
       cpu: 512,
       memoryLimitMiB: 1024,
       taskSubnets: { subnetType: ec2.SubnetType.PRIVATE_WITH_EGRESS },
@@ -144,6 +144,12 @@ export class EzCopyrightAwsStack extends Stack {
       },
       healthCheckGracePeriod: Duration.seconds(60),
     });
+
+    // The L2 service pattern validates desiredCount > 0. ECS itself supports 0,
+    // which is required for safe provision-first migration. Construct with one
+    // task, then set the synthesized ECS service to the requested count.
+    const cfnApiService = service.service.node.defaultChild;
+    cfnApiService.desiredCount = desiredCount;
 
     service.targetGroup.configureHealthCheck({
       path: '/health/ready',
