@@ -1,5 +1,5 @@
 import type {} from 'react';
-import { Shield, Fingerprint, Award, Zap, Music, Lock, ChevronRight, Star, TriangleAlert, ExternalLink } from 'lucide-react';
+import { Shield, Fingerprint, Award, Zap, Music, Lock, ChevronRight, TriangleAlert, ExternalLink, CheckCircle2 } from 'lucide-react';
 import type { LegalPageId } from '../types';
 import LegalFooter from './LegalFooter';
 
@@ -114,11 +114,11 @@ export default function LandingHero({
             {/* Badge */}
             <div className="inline-flex items-center gap-2 bg-white/10 backdrop-blur-sm border border-orange-500/30 rounded-full px-4 py-2 mb-8">
               <Shield className="w-4 h-4 text-orange-400" />
-              <span className="text-sm text-white/80">Trusted by 50,000+ musicians worldwide</span>
+              <span className="text-sm text-white/80">Private evidence records for your music</span>
             </div>
 
             <h1 className="text-5xl sm:text-7xl font-bold text-white mb-6 tracking-tight" style={{ fontFamily: 'Playfair Display, serif' }}>
-              Protect Your
+              Document Your
               <span className="block bg-gradient-to-r from-orange-400 via-amber-400 to-yellow-400 bg-clip-text text-transparent">
                 Musical Legacy
               </span>
@@ -135,7 +135,7 @@ export default function LandingHero({
                 className="group flex items-center gap-2 bg-gradient-to-r from-orange-600 to-amber-600 hover:from-orange-500 hover:to-amber-500 text-white px-8 py-4 rounded-2xl text-lg font-semibold shadow-2xl shadow-orange-900/50 transition-all duration-300 hover:scale-105 hover:shadow-orange-800/60 cursor-pointer"
               >
                 <Music className="w-5 h-5" />
-                Register Your Work
+                Create Evidence Record
                 <ChevronRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
               </button>
 
@@ -144,7 +144,7 @@ export default function LandingHero({
                   onClick={() => onNavigate('dashboard')}
                   className="flex items-center gap-2 bg-white/10 hover:bg-white/20 backdrop-blur text-white px-8 py-4 rounded-2xl text-lg font-medium border border-white/20 transition-all duration-300 cursor-pointer"
                 >
-                  View My Works ({workCount})
+                  View My Records ({workCount})
                 </button>
               )}
             </div>
@@ -152,9 +152,9 @@ export default function LandingHero({
             {/* Stats */}
             <div className="mt-20 grid grid-cols-3 gap-8 max-w-3xl mx-auto">
               {[
-                { value: '256-bit', label: 'SHA Encryption' },
-                { value: '<5s', label: 'Certificate Generation' },
-                { value: 'Private', label: 'Encrypted Audio Storage' },
+                { value: 'SHA-256', label: 'File Hashing' },
+                { value: 'PNG', label: 'Downloadable Certificate' },
+                { value: 'Private', label: 'Audio Storage' },
               ].map((stat, i) => (
                 <div key={i} className="text-center">
                   <div className="text-2xl sm:text-3xl font-bold text-white mb-1">{stat.value}</div>
@@ -174,7 +174,7 @@ export default function LandingHero({
               How EZ Copyright Helps You
             </h2>
             <p className="text-lg text-white/50 max-w-xl mx-auto">
-              Three powerful layers of protection for your creative works
+              Three clear layers of documentation for your creative works
             </p>
           </div>
 
@@ -183,7 +183,7 @@ export default function LandingHero({
               {
                 icon: Fingerprint,
                 title: 'Digital Fingerprint',
-                desc: 'Every file generates a unique SHA-256 cryptographic hash — your work\'s permanent digital DNA.',
+                desc: 'Every submitted file generates a SHA-256 cryptographic hash — a consistent fingerprint for that exact file.',
                 color: 'from-orange-500 to-amber-600',
                 bg: 'bg-orange-500/10',
                 border: 'border-orange-500/20',
@@ -198,8 +198,8 @@ export default function LandingHero({
               },
               {
                 icon: Lock,
-                title: 'Dated Proof Record',
-                desc: 'Capture a precise timestamp tied to your file hash so you can document when this version existed.',
+                title: 'Dated Evidence Record',
+                desc: 'Capture a timestamp tied to your file hash so you can document when this version was recorded in EZ Copyright.',
                 color: 'from-yellow-500 to-orange-600',
                 bg: 'bg-yellow-500/10',
                 border: 'border-yellow-500/20',
@@ -225,14 +225,14 @@ export default function LandingHero({
         <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
             <h2 className="text-3xl sm:text-4xl font-bold text-white mb-4" style={{ fontFamily: 'Playfair Display, serif' }}>
-              Register in 3 Simple Steps
+              Create a Record in 3 Simple Steps
             </h2>
           </div>
 
           <div className="space-y-8">
             {[
               { step: '01', title: 'Upload Your Work', desc: 'Upload your audio file (MP3, WAV, FLAC, etc.) along with work details.' },
-              { step: '02', title: 'Generate Fingerprint', desc: 'Our system creates a unique SHA-256 digital fingerprint of your file.' },
+              { step: '02', title: 'Generate Fingerprint', desc: 'Our system creates a SHA-256 digital fingerprint of your file.' },
               { step: '03', title: 'Save Your Record', desc: 'Download your evidence certificate, then file formal registration if you need stronger legal protection.' },
             ].map((item, i) => (
               <div key={i} className="flex items-start gap-6 group">
@@ -253,7 +253,7 @@ export default function LandingHero({
               className="group inline-flex items-center gap-2 bg-gradient-to-r from-orange-600 to-amber-600 hover:from-orange-500 hover:to-amber-500 text-white px-10 py-4 rounded-2xl text-lg font-semibold shadow-2xl shadow-orange-900/50 transition-all duration-300 hover:scale-105 cursor-pointer"
             >
               <Zap className="w-5 h-5" />
-              Start Protecting Your Music
+              Create an Evidence Record
               <ChevronRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
             </button>
           </div>
@@ -301,31 +301,27 @@ export default function LandingHero({
         </div>
       </div>
 
-      {/* Testimonials */}
+      {/* Product facts */}
       <div className="bg-neutral-950 py-24">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-16">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-14">
             <h2 className="text-3xl font-bold text-white mb-4" style={{ fontFamily: 'Playfair Display, serif' }}>
-              Trusted by Artists
+              Built for Careful Documentation
             </h2>
+            <p className="text-white/50 max-w-2xl mx-auto">
+              The service focuses on records you can inspect and retain rather than unverifiable promises about legal outcomes.
+            </p>
           </div>
           <div className="grid md:grid-cols-3 gap-6">
             {[
-              { name: 'Sarah Chen', role: 'Independent Artist', quote: 'Finally, a fast and reliable way to timestamp my demos before sharing them.' },
-              { name: 'Marcus Taylor', role: 'Producer', quote: 'The digital fingerprint gives me peace of mind with every beat I create.' },
-              { name: 'Luna Rivera', role: 'Songwriter', quote: 'I register every song here before pitching. The certificates are incredibly professional.' },
-            ].map((t, i) => (
-              <div key={i} className="bg-white/5 border border-white/10 rounded-2xl p-6 hover:border-orange-500/20 transition-all duration-300">
-                <div className="flex gap-1 mb-4">
-                  {[...Array(5)].map((_, j) => (
-                    <Star key={j} className="w-4 h-4 fill-orange-400 text-orange-400" />
-                  ))}
-                </div>
-                <p className="text-white/70 mb-4 italic">"{t.quote}"</p>
-                <div>
-                  <div className="font-semibold text-white">{t.name}</div>
-                  <div className="text-sm text-white/40">{t.role}</div>
-                </div>
+              { title: 'File fingerprint', text: 'Your submitted audio is tied to a SHA-256 file hash stored with the evidence record.' },
+              { title: 'Dated record', text: 'Each record includes a server-issued date, record number, and the work details you supplied.' },
+              { title: 'Private account access', text: 'Cloud records and stored audio are accessed through your authenticated account.' },
+            ].map((item) => (
+              <div key={item.title} className="bg-white/5 border border-white/10 rounded-2xl p-6">
+                <CheckCircle2 className="w-5 h-5 text-orange-400 mb-4" />
+                <h3 className="font-semibold text-white mb-2">{item.title}</h3>
+                <p className="text-white/55 leading-relaxed">{item.text}</p>
               </div>
             ))}
           </div>

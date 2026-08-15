@@ -43,7 +43,7 @@ export default function Dashboard({ works, isLoading, userEmail, onBack, onRegis
             </button>
             <div className="flex items-center gap-2">
               <img src="/ez-way-logo.png" alt="THE EZ WAY" className="w-7 h-7 object-contain" />
-              <span className="font-bold text-white">My Registered Works</span>
+              <span className="font-bold text-white">My Evidence Records</span>
             </div>
           </div>
           <div className="flex items-center gap-3">
@@ -56,10 +56,11 @@ export default function Dashboard({ works, isLoading, userEmail, onBack, onRegis
             </button>
             <button
               onClick={onRegister}
-              className="flex items-center gap-2 bg-orange-600 hover:bg-orange-500 text-white px-4 py-2 rounded-xl text-sm font-medium transition cursor-pointer"
+              disabled={Boolean(billing && !billing.active)}
+              className="flex items-center gap-2 bg-orange-600 hover:bg-orange-500 text-white px-4 py-2 rounded-xl text-sm font-medium transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <Plus className="w-4 h-4" />
-              Register New
+              New Record
             </button>
           </div>
         </div>
@@ -73,7 +74,7 @@ export default function Dashboard({ works, isLoading, userEmail, onBack, onRegis
               <div>
                 <p className="font-semibold text-white">{billing.active ? 'EZ Copyright Membership' : '$9.99 monthly membership required'}</p>
                 <p className="text-sm text-white/55">
-                  {billing.active ? `${billing.remaining} of ${billing.limit} registrations remaining this billing month` : 'Includes 5 private copyright evidence registrations each month.'}
+                  {billing.active ? `${billing.remaining} of ${billing.limit} evidence records remaining this billing month` : 'Includes 5 private evidence records each month.'}
                 </p>
               </div>
             </div>
@@ -84,10 +85,10 @@ export default function Dashboard({ works, isLoading, userEmail, onBack, onRegis
         )}
         <div className="mb-8">
           <h1 className="text-3xl sm:text-4xl font-bold text-white mb-2" style={{ fontFamily: 'Playfair Display, serif' }}>
-            Your Protected Works
+            Your Evidence Records
           </h1>
           <p className="text-white/50">
-            {works.length} {works.length === 1 ? 'work' : 'works'} registered and protected
+            {works.length} {works.length === 1 ? 'work' : 'works'} documented
           </p>
         </div>
 
@@ -100,7 +101,7 @@ export default function Dashboard({ works, isLoading, userEmail, onBack, onRegis
             </div>
             <div className="bg-white/5 border border-white/10 rounded-2xl p-4">
               <p className="text-2xl font-bold text-emerald-400">{works.filter(w => w.status === 'registered').length}</p>
-              <p className="text-xs text-white/40">Registered</p>
+              <p className="text-xs text-white/40">Evidence Records</p>
             </div>
             <div className="bg-white/5 border border-white/10 rounded-2xl p-4">
               <p className="text-2xl font-bold text-orange-400">{new Set(works.map(w => w.genre)).size}</p>
@@ -123,7 +124,7 @@ export default function Dashboard({ works, isLoading, userEmail, onBack, onRegis
               type="text"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search by title, artist, registration number, or genre..."
+              placeholder="Search by title, artist, record number, or genre..."
               className="w-full bg-white/5 border border-white/10 rounded-xl pl-12 pr-4 py-3 text-white placeholder:text-white/30 focus:outline-none focus:ring-2 focus:ring-orange-500/50 transition"
             />
           </div>
@@ -133,22 +134,22 @@ export default function Dashboard({ works, isLoading, userEmail, onBack, onRegis
         {isLoading ? (
           <div className="text-center py-20">
             <div className="w-16 h-16 rounded-full border-4 border-orange-500/20 border-t-orange-500 animate-spin mx-auto mb-5" />
-            <p className="text-white/45">Loading your protected works...</p>
+            <p className="text-white/45">Loading your evidence records...</p>
           </div>
         ) : works.length === 0 ? (
           <div className="text-center py-20">
             <div className="w-20 h-20 rounded-full bg-white/5 flex items-center justify-center mx-auto mb-6">
               <Music2 className="w-10 h-10 text-white/20" />
             </div>
-            <h3 className="text-xl font-semibold text-white mb-2">No works registered yet</h3>
-            <p className="text-white/40 mb-8">Start protecting your music by registering your first work.</p>
+            <h3 className="text-xl font-semibold text-white mb-2">No evidence records yet</h3>
+            <p className="text-white/40 mb-8">Document your first work to create a dated evidence record.</p>
             <button
               onClick={onRegister}
               disabled={Boolean(billing && !billing.active)}
-              className="inline-flex items-center gap-2 bg-gradient-to-r from-orange-600 to-amber-600 text-white px-6 py-3 rounded-2xl font-semibold shadow-lg transition hover:scale-105 cursor-pointer"
+              className="inline-flex items-center gap-2 bg-gradient-to-r from-orange-600 to-amber-600 text-white px-6 py-3 rounded-2xl font-semibold shadow-lg transition hover:scale-105 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <Plus className="w-5 h-5" />
-              Register Your First Work
+              Create First Record
             </button>
           </div>
         ) : filtered.length === 0 ? (
@@ -177,7 +178,7 @@ export default function Dashboard({ works, isLoading, userEmail, onBack, onRegis
                       </div>
                       <span className="inline-flex items-center gap-1 bg-emerald-500/10 text-emerald-400 px-3 py-1 rounded-full text-xs font-medium flex-shrink-0 border border-emerald-500/20">
                         <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
-                        Registered
+                        Recorded
                       </span>
                     </div>
 
