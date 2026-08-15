@@ -40,7 +40,7 @@ export default function Certificate({ work, onBack, onDashboard, onLegalNavigate
         .replace(/^-+|-+$/g, '')
         .slice(0, 80) || 'Untitled';
       const link = document.createElement('a');
-      link.download = `EZ-Copyright-${safeTitle}-${work.registrationNumber}.png`;
+      link.download = `EZ-Copyright-Evidence-${safeTitle}-${work.registrationNumber}.png`;
       link.href = dataUrl;
       link.click();
     } catch (err) {
@@ -72,7 +72,7 @@ export default function Certificate({ work, onBack, onDashboard, onLegalNavigate
             </button>
             <div className="flex items-center gap-2">
               <Shield className="w-5 h-5 text-emerald-400" />
-              <span className="font-bold text-white">Evidence Certificate Issued</span>
+              <span className="font-bold text-white">Evidence Record Created</span>
             </div>
           </div>
           <div className="flex items-center gap-3">
@@ -80,7 +80,7 @@ export default function Certificate({ work, onBack, onDashboard, onLegalNavigate
               onClick={onDashboard}
               className="text-sm text-white/60 hover:text-white px-3 py-2 rounded-lg hover:bg-white/10 transition cursor-pointer"
             >
-              My Works
+              My Records
             </button>
             <button
               onClick={downloadCertificate}
@@ -122,29 +122,26 @@ export default function Certificate({ work, onBack, onDashboard, onLegalNavigate
           <div className="border border-white/10 rounded-3xl overflow-hidden">
             {/* Certificate Header */}
             <div className="bg-gradient-to-r from-orange-900/40 via-amber-900/40 to-orange-900/40 border-b border-orange-500/20 p-8 sm:p-10 text-center relative overflow-hidden">
-              {/* Decorative metallic lines */}
               <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-transparent via-orange-500 to-transparent" />
               <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-orange-500/50 to-transparent" />
-              
+
               <div className="flex items-center justify-center gap-3 mb-4">
                 <img src="/ez-way-logo.png" alt="THE EZ WAY" className="w-14 h-14 object-contain" />
                 <span className="text-2xl font-bold text-white tracking-wide">THE EZ WAY</span>
               </div>
               <h1 className="text-3xl sm:text-4xl font-bold text-white mb-2" style={{ fontFamily: 'Playfair Display, serif' }}>
-                Certificate of Copyright Evidence
+                Certificate of Evidence Record
               </h1>
               <p className="text-white/40 text-sm">Digital Music Evidence Record</p>
             </div>
 
             {/* Certificate Body */}
             <div className="p-8 sm:p-10 space-y-8">
-              {/* Registration Number */}
               <div className="text-center">
                 <p className="text-xs text-white/40 uppercase tracking-widest mb-2">Record Number</p>
                 <p className="text-2xl font-mono font-bold text-orange-400 tracking-wider">{work.registrationNumber}</p>
               </div>
 
-              {/* Work Info */}
               <div className="grid sm:grid-cols-2 gap-6">
                 <div className="bg-white/5 rounded-2xl p-5">
                   <p className="text-xs text-white/40 uppercase tracking-wider mb-1">Title of Work</p>
@@ -169,12 +166,11 @@ export default function Certificate({ work, onBack, onDashboard, onLegalNavigate
                   <p className="text-white">{work.dateCreated}</p>
                 </div>
                 <div className="bg-white/5 rounded-2xl p-5">
-                  <p className="text-xs text-white/40 uppercase tracking-wider mb-1">Date of Registration</p>
+                  <p className="text-xs text-white/40 uppercase tracking-wider mb-1">Date Recorded</p>
                   <p className="text-white">{formattedDate}</p>
                 </div>
               </div>
 
-              {/* File Info */}
               <div className="bg-white/5 rounded-2xl p-5">
                 <p className="text-xs text-white/40 uppercase tracking-wider mb-3">Documented File</p>
                 <div className="flex items-center gap-3">
@@ -186,7 +182,6 @@ export default function Certificate({ work, onBack, onDashboard, onLegalNavigate
                 </div>
               </div>
 
-              {/* Digital Fingerprint */}
               <div className="bg-gradient-to-br from-orange-500/10 to-amber-500/10 border border-orange-500/20 rounded-2xl p-6">
                 <div className="flex items-center gap-2 mb-4">
                   <Fingerprint className="w-5 h-5 text-orange-400" />
@@ -200,17 +195,15 @@ export default function Certificate({ work, onBack, onDashboard, onLegalNavigate
                   ))}
                 </div>
                 <div className="flex items-center justify-between">
-                  <p className="text-xs text-white/30">SHA-256 Cryptographic Hash • Unique & Immutable</p>
+                  <p className="text-xs text-white/30">SHA-256 Based Evidence Fingerprint</p>
                 </div>
               </div>
 
-              {/* File SHA-256 Hash */}
               <div className="bg-white/5 rounded-2xl p-5">
                 <p className="text-xs text-white/40 uppercase tracking-wider mb-2">File SHA-256 Hash</p>
                 <p className="font-mono text-xs text-white/60 break-all leading-relaxed">{work.fileHash}</p>
               </div>
 
-              {/* Description */}
               {work.description && (
                 <div className="bg-white/5 rounded-2xl p-5">
                   <p className="text-xs text-white/40 uppercase tracking-wider mb-2">Description</p>
@@ -218,14 +211,13 @@ export default function Certificate({ work, onBack, onDashboard, onLegalNavigate
                 </div>
               )}
 
-              {/* Footer */}
               <div className="border-t border-white/10 pt-6 text-center">
                 <div className="flex justify-center mb-3">
                   <img src="/ez-way-logo.png" alt="THE EZ WAY" className="w-10 h-10 object-contain opacity-50" />
                 </div>
                 <p className="text-xs text-white/30 leading-relaxed">
                   This certificate confirms that the above-described work was documented with EZ Copyright by THE EZ WAY on the stated date.
-                  The digital fingerprint serves as cryptographic proof of the work's contents at the time this record was created.
+                  The record stores the submitted file's SHA-256 hash together with the work details shown above.
                   <br />
                   Certificate ID: {work.id}
                 </p>
@@ -234,14 +226,13 @@ export default function Certificate({ work, onBack, onDashboard, onLegalNavigate
           </div>
         </div>
 
-        {/* Action buttons below certificate */}
         <div className="mt-8 grid sm:grid-cols-3 gap-4">
           <button
             onClick={() => copyToClipboard(work.registrationNumber, 'reg')}
             className="flex items-center justify-center gap-2 bg-white/5 hover:bg-white/10 border border-white/10 text-white px-4 py-3 rounded-xl text-sm font-medium transition cursor-pointer"
           >
             {copied === 'reg' ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4" />}
-            {copied === 'reg' ? 'Copied!' : 'Copy Reg. Number'}
+            {copied === 'reg' ? 'Copied!' : 'Copy Record Number'}
           </button>
           <button
             onClick={() => copyToClipboard(work.digitalFingerprint, 'fp')}
