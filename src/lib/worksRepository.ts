@@ -1,8 +1,8 @@
 import type { MusicalWork } from '../types';
 import { supabase } from './supabase';
+import { getAccessToken } from './auth';
 
 const STORAGE_KEY = 'ogbeatz_works';
-const AUDIO_BUCKET = 'audio';
 
 interface WorkRow {
   id: string;
@@ -58,7 +58,7 @@ function fromRow(row: WorkRow): MusicalWork {
     fileType: row.file_type,
     status: row.status,
     hasStoredAudio: Boolean(row.storage_path),
-  uploadId: undefined,
+    uploadId: undefined,
   };
 }
 
@@ -85,9 +85,99 @@ function toRow(work: MusicalWork, userId: string): Omit<WorkRow, 'storage_path'>
   };
 }
 
-function audioPath(userId: string, workId: string, fileName: string): string {
-  const safeName = fileName.normalize('NFKD').replace(/[^a-zA-Z0-9._-]+/g, '-').slice(-180) || 'audio';
-  return `${userId}/${workId}/${safeName}`;
+async function getStoragePathForWork(workId: string): Promise<string | null> {
+  if (!supabase) return null;
+  const { data: row } = await supabase
+    .from('works')
+    .select('storage_path')
+    .eq('id', workId)
+    .maybeSingle();
+  return row?.storage_path ?? null;
+}
+
+async function uploadToS3(work: MusicalWork, file: File): Promise<string> {
+  if (!supabase) throw new Error('Cloud storage is not available.');
+
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
+  if (!session) throw new Error('Please sign in again to upload audio.');
+
+  const functionUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/s3-storage`;
+  const response = await fetch(functionUrl, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${session.access_token}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      workId: work.id,
+      fileName: work.fileName,
+      fileType: work.fileType,
+    }),
+  });
+
+  if (!response.ok) {
+    const payload = await response.json().catch(() => null);
+    throw new Error(payload?.error || 'Could not create upload link.');
+  }
+
+  const { uploadUrl, objectKey } = await response.json();
+
+  const uploadResponse = await fetch(uploadUrl, {
+    method: 'PUT',
+    headers: { 'Content-Type': work.fileType },
+    body: file,
+  });
+
+  if (!uploadResponse.ok) {
+    throw new Error('The audio file could not be uploaded to storage.');
+  }
+
+  return objectKey;
+}
+
+async function deleteFromS3(objectKey: string): Promise<void> {
+  if (!supabase) return;
+
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
+  if (!session) return;
+
+  const functionUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/s3-storage?objectKey=${encodeURIComponent(objectKey)}`;
+  const response = await fetch(functionUrl, {
+    method: 'DELETE',
+    headers: { 'Authorization': `Bearer ${session.access_token}` },
+  });
+
+  if (!response.ok) {
+    const payload = await response.json().catch(() => null);
+    throw new Error(payload?.error || 'Could not delete stored audio.');
+  }
+}
+
+async function getDownloadUrlFromS3(objectKey: string, fileName: string): Promise<string> {
+  if (!supabase) throw new Error('Audio download is not available in local mode.');
+
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
+  if (!session) throw new Error('Please sign in again to download audio.');
+
+  const functionUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/s3-storage?objectKey=${encodeURIComponent(objectKey)}&fileName=${encodeURIComponent(fileName)}`;
+  const response = await fetch(functionUrl, {
+    method: 'GET',
+    headers: { 'Authorization': `Bearer ${session.access_token}` },
+  });
+
+  if (!response.ok) {
+    const payload = await response.json().catch(() => null);
+    throw new Error(payload?.error || 'Could not create download link.');
+  }
+
+  const { downloadUrl } = await response.json();
+  return downloadUrl;
 }
 
 export async function listWorks(userId: string): Promise<MusicalWork[]> {
@@ -116,14 +206,7 @@ export async function createWork(userId: string, work: MusicalWork, file?: File)
   let storagePath: string | null = null;
 
   if (file) {
-    storagePath = audioPath(userId, work.id, work.fileName);
-    const { error: uploadError } = await supabase.storage
-      .from(AUDIO_BUCKET)
-      .upload(storagePath, file, { contentType: work.fileType, upsert: false });
-
-    if (uploadError) {
-      throw new Error(`Audio upload failed: ${uploadError.message}`);
-    }
+    storagePath = await uploadToS3(work, file);
   }
 
   const row = toRow(work, userId);
@@ -135,7 +218,7 @@ export async function createWork(userId: string, work: MusicalWork, file?: File)
 
   if (error) {
     if (storagePath) {
-      await supabase.storage.from(AUDIO_BUCKET).remove([storagePath]);
+      await deleteFromS3(storagePath).catch(() => {});
     }
     throw error;
   }
@@ -150,15 +233,10 @@ export async function removeWork(userId: string, workId: string): Promise<void> 
     return;
   }
 
-  const { data: row } = await supabase
-    .from('works')
-    .select('storage_path')
-    .eq('id', workId)
-    .eq('user_id', userId)
-    .maybeSingle();
+  const storagePath = await getStoragePathForWork(workId);
 
-  if (row?.storage_path) {
-    await supabase.storage.from(AUDIO_BUCKET).remove([row.storage_path]);
+  if (storagePath) {
+    await deleteFromS3(storagePath);
   }
 
   const { error } = await supabase
@@ -177,7 +255,7 @@ export async function getWorkAudioUrl(workId: string): Promise<string> {
 
   const { data: row, error: queryError } = await supabase
     .from('works')
-    .select('storage_path, user_id')
+    .select('storage_path, file_name, user_id')
     .eq('id', workId)
     .maybeSingle();
 
@@ -186,10 +264,5 @@ export async function getWorkAudioUrl(workId: string): Promise<string> {
     throw new Error('No stored audio found for this record.');
   }
 
-  const { data, error } = await supabase.storage
-    .from(AUDIO_BUCKET)
-    .createSignedUrl(row.storage_path, 300);
-
-  if (error) throw error;
-  return data.signedUrl;
+  return getDownloadUrlFromS3(row.storage_path, row.file_name);
 }
