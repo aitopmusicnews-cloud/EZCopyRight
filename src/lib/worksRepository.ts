@@ -1,5 +1,4 @@
 import type { MusicalWork } from '../types';
-import { apiRequest, isApiConfigured } from './api';
 import { supabase } from './supabase';
 
 const STORAGE_KEY = 'ogbeatz_works';
@@ -92,11 +91,6 @@ function audioPath(userId: string, workId: string, fileName: string): string {
 }
 
 export async function listWorks(userId: string): Promise<MusicalWork[]> {
-  if (isApiConfigured) {
-    const response = await apiRequest<{ works: MusicalWork[] }>('/v1/works');
-    return response.works;
-  }
-
   if (!supabase) {
     return loadLocalWorks().filter((work) => work.userId === userId);
   }
@@ -112,43 +106,6 @@ export async function listWorks(userId: string): Promise<MusicalWork[]> {
 }
 
 export async function createWork(userId: string, work: MusicalWork, file?: File): Promise<MusicalWork> {
-  if (isApiConfigured) {
-    if (!file) throw new Error('Select the audio file again to store a private copy.');
-    const upload = await apiRequest<{
-      uploadId: string;
-      uploadUrl: string;
-      headers: Record<string, string>;
-    }>('/v1/uploads', {
-      method: 'POST',
-      body: JSON.stringify({
-        fileHash: work.fileHash,
-        fileName: work.fileName,
-        fileSize: work.fileSize,
-        fileType: work.fileType,
-      }),
-    });
-    const uploadResponse = await fetch(upload.uploadUrl, {
-      method: 'PUT',
-      headers: upload.headers,
-      body: file,
-    });
-    if (!uploadResponse.ok) {
-      const responseText = await uploadResponse.text();
-      const awsCode = responseText.match(/<Code>([^<]+)<\/Code>/)?.[1];
-      throw new Error(
-        awsCode
-          ? `Private audio upload failed: ${awsCode}.`
-          : `Private audio upload failed with status ${uploadResponse.status}.`,
-      );
-    }
-    await apiRequest(`/v1/uploads/${encodeURIComponent(upload.uploadId)}/complete`, { method: 'POST' });
-    const response = await apiRequest<{ work: MusicalWork }>('/v1/works', {
-      method: 'POST',
-      body: JSON.stringify({ ...work, uploadId: upload.uploadId }),
-    });
-    return response.work;
-  }
-
   if (!supabase) {
     const works = loadLocalWorks();
     const nextWork = { ...work, userId };
@@ -187,11 +144,6 @@ export async function createWork(userId: string, work: MusicalWork, file?: File)
 }
 
 export async function removeWork(userId: string, workId: string): Promise<void> {
-  if (isApiConfigured) {
-    await apiRequest<void>(`/v1/works/${encodeURIComponent(workId)}`, { method: 'DELETE' });
-    return;
-  }
-
   if (!supabase) {
     const works = loadLocalWorks();
     saveLocalWorks(works.filter((work) => !(work.id === workId && work.userId === userId)));
@@ -219,11 +171,6 @@ export async function removeWork(userId: string, workId: string): Promise<void> 
 }
 
 export async function getWorkAudioUrl(workId: string): Promise<string> {
-  if (isApiConfigured) {
-    const response = await apiRequest<{ url: string }>(`/v1/works/${encodeURIComponent(workId)}/audio`);
-    return response.url;
-  }
-
   if (!supabase) {
     throw new Error('Audio download is not available in local mode.');
   }

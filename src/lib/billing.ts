@@ -1,4 +1,3 @@
-import { apiRequest, isApiConfigured } from './api';
 import { supabase } from './supabase';
 
 export interface BillingStatus {
@@ -16,10 +15,6 @@ const MONTHLY_LIMIT = 5;
 const ACTIVE_STATUSES = new Set(['active', 'trialing']);
 
 export async function getBillingStatus(): Promise<BillingStatus> {
-  if (isApiConfigured) {
-    return apiRequest<BillingStatus>('/v1/billing/status');
-  }
-
   if (!supabase) {
     return {
       configured: false,
@@ -148,23 +143,11 @@ async function invokeBillingFunction(name: 'create-checkout-session' | 'create-p
 }
 
 export async function startCheckout() {
-  if (isApiConfigured) {
-    const result = await apiRequest<{ url: string }>('/v1/billing/checkout', { method: 'POST' });
-    window.location.assign(result.url);
-    return;
-  }
-
   const url = await invokeBillingFunction('create-checkout-session');
   window.location.assign(url);
 }
 
 export async function openBillingPortal() {
-  if (isApiConfigured) {
-    const result = await apiRequest<{ url: string }>('/v1/billing/portal', { method: 'POST' });
-    window.location.assign(result.url);
-    return;
-  }
-
   const url = await invokeBillingFunction('create-portal-session');
   window.location.assign(url);
 }
