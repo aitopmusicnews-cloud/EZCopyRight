@@ -1,4 +1,4 @@
-import { supabase } from './supabase';
+import { getAccessToken } from './auth';
 
 export interface BillingStatus {
   configured: boolean;
@@ -12,142 +12,75 @@ export interface BillingStatus {
 }
 
 const MONTHLY_LIMIT = 5;
-const ACTIVE_STATUSES = new Set(['active', 'trialing']);
+const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || 'https://s3qmbjubgp.us-west-2.awsapprunner.com').replace(/\/$/, '');
 
-export async function getBillingStatus(): Promise<BillingStatus> {
-  if (!supabase) {
-    return {
-      configured: false,
-      active: true,
-      status: 'local',
-      used: 0,
-      limit: MONTHLY_LIMIT,
-      remaining: MONTHLY_LIMIT,
-      currentPeriodEnd: null,
-      cancelAtPeriodEnd: false,
-    };
-  }
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    return {
-      configured: false,
-      active: false,
-      status: 'no_user',
-      used: 0,
-      limit: MONTHLY_LIMIT,
-      remaining: 0,
-      currentPeriodEnd: null,
-      cancelAtPeriodEnd: false,
-    };
-  }
-
-  const { data, error } = await supabase
-    .from('billing_customers')
-    .select('subscription_status, current_period_end, cancel_at_period_end')
-    .eq('user_id', user.id)
-    .maybeSingle();
-
-  if (error) {
-    return {
-      configured: true,
-      active: false,
-      status: 'error',
-      used: 0,
-      limit: MONTHLY_LIMIT,
-      remaining: 0,
-      currentPeriodEnd: null,
-      cancelAtPeriodEnd: false,
-    };
-  }
-
-  if (!data) {
-    return {
-      configured: true,
-      active: false,
-      status: 'inactive',
-      used: 0,
-      limit: MONTHLY_LIMIT,
-      remaining: 0,
-      currentPeriodEnd: null,
-      cancelAtPeriodEnd: false,
-    };
-  }
-
-  const active = ACTIVE_STATUSES.has(data.subscription_status);
-
-  const { count } = await supabase
-    .from('works')
-    .select('id', { count: 'exact', head: true })
-    .eq('user_id', user.id)
-    .gte('date_registered', data.current_period_end
-      ? new Date(new Date(data.current_period_end).getTime() - 30 * 24 * 60 * 60 * 1000).toISOString()
-      : new Date(new Date().getTime() - 30 * 24 * 60 * 60 * 1000).toISOString());
-
-  const used = count ?? 0;
-
-  return {
-    configured: true,
-    active,
-    status: data.subscription_status,
-    used,
-    limit: MONTHLY_LIMIT,
-    remaining: Math.max(0, MONTHLY_LIMIT - used),
-    currentPeriodEnd: data.current_period_end,
-    cancelAtPeriodEnd: data.cancel_at_period_end ?? false,
-  };
-}
-
-async function invokeBillingFunction(name: 'create-checkout-session' | 'create-portal-session'): Promise<string> {
-  if (!supabase) {
-    throw new Error('Billing is not available right now.');
-  }
-
-  const {
-    data: { session },
-  } = await supabase.auth.getSession();
-
-  if (!session) {
+async function apiRequest<T>(path: string, options: RequestInit = {}): Promise<T> {
+  const token = await getAccessToken();
+  if (!token) {
     throw new Error('Please sign in again to continue.');
   }
 
-  const { data, error } = await supabase.functions.invoke<{ url?: string; error?: string }>(name, {
-    body: { origin: window.location.origin },
+  const response = await fetch(`${API_BASE_URL}${path}`, {
+    ...options,
+    headers: {
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/json',
+      ...(options.headers || {}),
+    },
   });
 
-  if (error) {
-    let serverMessage = '';
-    try {
-      const context = (error as { context?: { response?: Response } }).context;
-      const response = context?.response;
-      if (response) {
-        const cloned = response.clone();
-        const payload = await cloned.json().catch(() => null);
-        if (payload && typeof payload === 'object' && payload !== null && 'error' in payload) {
-          const raw = (payload as { error?: unknown }).error;
-          if (typeof raw === 'string') serverMessage = raw;
-        }
-      }
-    } catch {
-      serverMessage = '';
+  const data = await response.json().catch(() => null);
+  if (!response.ok) {
+    if (response.status === 401) {
+      throw new Error('Please sign in again to continue.');
     }
-    throw new Error(serverMessage || error.message || 'Billing could not be started.');
+    const message = data && typeof data === 'object' && 'error' in data
+      ? String((data as { error?: unknown }).error || '')
+      : '';
+    throw new Error(message || 'Billing request failed.');
   }
+
+  return data as T;
+}
+
+export async function getBillingStatus(): Promise<BillingStatus> {
+  try {
+    return await apiRequest<BillingStatus>('/v1/billing/status');
+  } catch (error) {
+    if (error instanceof Error && error.message === 'Please sign in again to continue.') {
+      return {
+        configured: true,
+        active: false,
+        status: 'no_user',
+        used: 0,
+        limit: MONTHLY_LIMIT,
+        remaining: 0,
+        currentPeriodEnd: null,
+        cancelAtPeriodEnd: false,
+      };
+    }
+    throw error;
+  }
+}
+
+async function invokeBillingEndpoint(path: '/v1/billing/checkout' | '/v1/billing/portal'): Promise<string> {
+  const data = await apiRequest<{ url?: string }>(path, {
+    method: 'POST',
+    body: JSON.stringify({}),
+  });
+
   if (!data?.url) {
-    throw new Error(data?.error || 'Billing could not be started.');
+    throw new Error('Billing could not be started.');
   }
   return data.url;
 }
 
 export async function startCheckout() {
-  const url = await invokeBillingFunction('create-checkout-session');
+  const url = await invokeBillingEndpoint('/v1/billing/checkout');
   window.location.assign(url);
 }
 
 export async function openBillingPortal() {
-  const url = await invokeBillingFunction('create-portal-session');
+  const url = await invokeBillingEndpoint('/v1/billing/portal');
   window.location.assign(url);
 }
