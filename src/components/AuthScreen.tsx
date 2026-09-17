@@ -34,9 +34,7 @@ export default function AuthScreen({
 
   const authModeLabel = authMode === 'supabase'
     ? 'Supabase secure cloud'
-    : authMode === 'cognito'
-      ? 'AWS Cognito secure cloud'
-      : 'Local demo fallback';
+    : 'Local demo fallback';
 
   const switchMode = () => {
     setIsSignUp((value) => !value);
@@ -270,16 +268,6 @@ export default function AuthScreen({
                       ? 'Create account'
                       : 'Sign in'}
               </button>
-
-              {!awaitingConfirmation && authMode === 'cognito' && (
-                <button
-                  type="button"
-                  onClick={openConfirmationEntry}
-                  className="w-full rounded-2xl border border-orange-500/20 bg-orange-500/5 px-4 py-3 text-sm font-medium text-orange-200 hover:bg-orange-500/10 cursor-pointer"
-                >
-                  Enter confirmation code
-                </button>
-              )}
 
               {awaitingConfirmation && (
                 <button

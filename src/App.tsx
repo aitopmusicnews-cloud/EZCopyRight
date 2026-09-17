@@ -269,11 +269,9 @@ export default function App() {
             isAuthenticated={Boolean(authUser)}
             userEmail={authUser?.email ?? null}
             authModeLabel={
-              authMode === 'cognito'
-                ? 'AWS Cognito secure cloud'
-                : authMode === 'supabase'
-                  ? 'Supabase secure cloud'
-                  : 'Local demo mode'
+              authMode === 'supabase'
+                ? 'Supabase secure cloud'
+                : 'Local demo mode'
             }
             onAuthAction={() => {
               setAuthTargetPage('dashboard');
