@@ -202,9 +202,17 @@ export default function App() {
   };
 
   const handleSignOut = async () => {
-    await signOut();
+    try {
+      await signOut();
+    } catch {
+      // Sign-out should always return the user to the landing page, even if the
+      // remote revoke fails. Local session storage is cleared inside signOut().
+    }
     setAuthUser(null);
     setSelectedWork(null);
+    setBilling(null);
+    setWorks([]);
+    setAppError('');
     navigateHome();
   };
 

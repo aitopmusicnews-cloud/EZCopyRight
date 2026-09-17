@@ -429,6 +429,10 @@ export async function signOut(): Promise<void> {
     return;
   }
 
-  const { error } = await supabase.auth.signOut();
-  if (error) throw error;
+  try {
+    await supabase.auth.signOut({ scope: 'local' });
+  } catch {
+    // Local session storage is cleared by supabase-js before the remote revoke runs,
+    // so we intentionally swallow network errors here to keep sign-out working offline.
+  }
 }
