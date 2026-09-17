@@ -83,7 +83,7 @@ Deno.serve(async (req: Request) => {
     if (!res.ok) {
       const message = json?.error?.message || "Stripe billing portal request failed";
       console.error("create-portal-session error:", message);
-      return new Response(JSON.stringify({ error: "Billing portal could not be opened." }), {
+      return new Response(JSON.stringify({ error: message }), {
         status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -94,7 +94,8 @@ Deno.serve(async (req: Request) => {
     });
   } catch (error) {
     console.error("create-portal-session error:", error);
-    return new Response(JSON.stringify({ error: "Billing portal could not be opened." }), {
+    const message = error instanceof Error ? error.message : "Billing portal could not be opened.";
+    return new Response(JSON.stringify({ error: message }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });

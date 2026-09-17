@@ -124,7 +124,22 @@ async function invokeBillingFunction(name: 'create-checkout-session' | 'create-p
   });
 
   if (error) {
-    throw new Error(error.message || 'Billing could not be started.');
+    let serverMessage = '';
+    try {
+      const context = (error as { context?: { response?: Response } }).context;
+      const response = context?.response;
+      if (response) {
+        const cloned = response.clone();
+        const payload = await cloned.json().catch(() => null);
+        if (payload && typeof payload === 'object' && payload !== null && 'error' in payload) {
+          const raw = (payload as { error?: unknown }).error;
+          if (typeof raw === 'string') serverMessage = raw;
+        }
+      }
+    } catch {
+      serverMessage = '';
+    }
+    throw new Error(serverMessage || error.message || 'Billing could not be started.');
   }
   if (!data?.url) {
     throw new Error(data?.error || 'Billing could not be started.');
