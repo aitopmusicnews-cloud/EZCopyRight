@@ -6,10 +6,8 @@ frontend:
         - npm ci
     build:
       commands:
-        - export VITE_AWS_REGION="${VITE_AWS_REGION:-us-west-2}"
-        - export VITE_COGNITO_USER_POOL_ID="${VITE_COGNITO_USER_POOL_ID:-us-west-2_jJs1JIarh}"
-        - export VITE_COGNITO_CLIENT_ID="${VITE_COGNITO_CLIENT_ID:-6j3dpm8g95pa2uuevfuk206qdi}"
-        - export VITE_API_BASE_URL="${VITE_API_BASE_URL:-https://ezcopyright-api.onrender.com}"
+        - export VITE_SUPABASE_URL="${VITE_SUPABASE_URL:-https://hwwahdcayltkbomqftiz.supabase.co}"
+        - export VITE_SUPABASE_ANON_KEY="${VITE_SUPABASE_ANON_KEY:-eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imh3d2FoZGNheWx0a2JvbXFmdGl6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODk2MTkxMDgsImV4cCI6MjEwNTE5NTEwOH0.Ka6hPRejJFZGayLaQcD-t4SqcPEReO-xjwjj38isfVg}"
         - npm run build
   artifacts:
     baseDirectory: dist
