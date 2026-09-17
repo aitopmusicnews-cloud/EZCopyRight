@@ -72,7 +72,7 @@ export default function Dashboard({ works, isLoading, userEmail, onBack, onRegis
             <div className="flex items-start gap-3">
               <CreditCard className={billing.active ? 'text-emerald-400' : 'text-orange-400'} />
               <div>
-                <p className="font-semibold text-white">{billing.active ? 'EZ Copyright Membership' : '$9.99 monthly membership required'}</p>
+                <p className="font-semibold text-white">{billing.active ? 'EZ Copyright Membership' : '$20.00 monthly membership required'}</p>
                 <p className="text-sm text-white/55">
                   {billing.active ? `${billing.remaining} of ${billing.limit} evidence records remaining this billing month` : 'Includes 5 private evidence records each month.'}
                 </p>
