@@ -106,6 +106,32 @@ export async function getBillingStatus(): Promise<BillingStatus> {
   };
 }
 
+async function invokeBillingFunction(name: 'create-checkout-session' | 'create-portal-session'): Promise<string> {
+  if (!supabase) {
+    throw new Error('Billing is not available right now.');
+  }
+
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
+
+  if (!session) {
+    throw new Error('Please sign in again to continue.');
+  }
+
+  const { data, error } = await supabase.functions.invoke<{ url?: string; error?: string }>(name, {
+    body: { origin: window.location.origin },
+  });
+
+  if (error) {
+    throw new Error(error.message || 'Billing could not be started.');
+  }
+  if (!data?.url) {
+    throw new Error(data?.error || 'Billing could not be started.');
+  }
+  return data.url;
+}
+
 export async function startCheckout() {
   if (isApiConfigured) {
     const result = await apiRequest<{ url: string }>('/v1/billing/checkout', { method: 'POST' });
@@ -113,7 +139,8 @@ export async function startCheckout() {
     return;
   }
 
-  throw new Error('Stripe checkout is not yet configured. Add your Stripe keys to enable subscriptions.');
+  const url = await invokeBillingFunction('create-checkout-session');
+  window.location.assign(url);
 }
 
 export async function openBillingPortal() {
@@ -123,5 +150,6 @@ export async function openBillingPortal() {
     return;
   }
 
-  throw new Error('Billing portal is not yet configured. Add your Stripe keys to enable billing management.');
+  const url = await invokeBillingFunction('create-portal-session');
+  window.location.assign(url);
 }
