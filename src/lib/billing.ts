@@ -1,4 +1,5 @@
-import { apiRequest } from './api';
+import { apiRequest, isApiConfigured } from './api';
+import { supabase } from './supabase';
 
 export interface BillingStatus {
   configured: boolean;
@@ -11,16 +12,116 @@ export interface BillingStatus {
   cancelAtPeriodEnd: boolean;
 }
 
-export function getBillingStatus() {
-  return apiRequest<BillingStatus>('/v1/billing/status');
+const MONTHLY_LIMIT = 5;
+const ACTIVE_STATUSES = new Set(['active', 'trialing']);
+
+export async function getBillingStatus(): Promise<BillingStatus> {
+  if (isApiConfigured) {
+    return apiRequest<BillingStatus>('/v1/billing/status');
+  }
+
+  if (!supabase) {
+    return {
+      configured: false,
+      active: true,
+      status: 'local',
+      used: 0,
+      limit: MONTHLY_LIMIT,
+      remaining: MONTHLY_LIMIT,
+      currentPeriodEnd: null,
+      cancelAtPeriodEnd: false,
+    };
+  }
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return {
+      configured: false,
+      active: false,
+      status: 'no_user',
+      used: 0,
+      limit: MONTHLY_LIMIT,
+      remaining: 0,
+      currentPeriodEnd: null,
+      cancelAtPeriodEnd: false,
+    };
+  }
+
+  const { data, error } = await supabase
+    .from('billing_customers')
+    .select('subscription_status, current_period_end, cancel_at_period_end')
+    .eq('user_id', user.id)
+    .maybeSingle();
+
+  if (error) {
+    return {
+      configured: true,
+      active: false,
+      status: 'error',
+      used: 0,
+      limit: MONTHLY_LIMIT,
+      remaining: 0,
+      currentPeriodEnd: null,
+      cancelAtPeriodEnd: false,
+    };
+  }
+
+  if (!data) {
+    return {
+      configured: true,
+      active: false,
+      status: 'inactive',
+      used: 0,
+      limit: MONTHLY_LIMIT,
+      remaining: 0,
+      currentPeriodEnd: null,
+      cancelAtPeriodEnd: false,
+    };
+  }
+
+  const active = ACTIVE_STATUSES.has(data.subscription_status);
+
+  const { count } = await supabase
+    .from('works')
+    .select('id', { count: 'exact', head: true })
+    .eq('user_id', user.id)
+    .gte('date_registered', data.current_period_end
+      ? new Date(new Date(data.current_period_end).getTime() - 30 * 24 * 60 * 60 * 1000).toISOString()
+      : new Date(new Date().getTime() - 30 * 24 * 60 * 60 * 1000).toISOString());
+
+  const used = count ?? 0;
+
+  return {
+    configured: true,
+    active,
+    status: data.subscription_status,
+    used,
+    limit: MONTHLY_LIMIT,
+    remaining: Math.max(0, MONTHLY_LIMIT - used),
+    currentPeriodEnd: data.current_period_end,
+    cancelAtPeriodEnd: data.cancel_at_period_end ?? false,
+  };
 }
 
 export async function startCheckout() {
-  const result = await apiRequest<{ url: string }>('/v1/billing/checkout', { method: 'POST' });
-  window.location.assign(result.url);
+  if (isApiConfigured) {
+    const result = await apiRequest<{ url: string }>('/v1/billing/checkout', { method: 'POST' });
+    window.location.assign(result.url);
+    return;
+  }
+
+  throw new Error('Stripe checkout is not yet configured. Add your Stripe keys to enable subscriptions.');
 }
 
 export async function openBillingPortal() {
-  const result = await apiRequest<{ url: string }>('/v1/billing/portal', { method: 'POST' });
-  window.location.assign(result.url);
+  if (isApiConfigured) {
+    const result = await apiRequest<{ url: string }>('/v1/billing/portal', { method: 'POST' });
+    window.location.assign(result.url);
+    return;
+  }
+
+  throw new Error('Billing portal is not yet configured. Add your Stripe keys to enable billing management.');
 }

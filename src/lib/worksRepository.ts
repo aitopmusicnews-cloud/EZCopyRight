@@ -3,6 +3,7 @@ import { apiRequest, isApiConfigured } from './api';
 import { supabase } from './supabase';
 
 const STORAGE_KEY = 'ogbeatz_works';
+const AUDIO_BUCKET = 'audio';
 
 interface WorkRow {
   id: string;
@@ -22,6 +23,7 @@ interface WorkRow {
   file_size: number;
   file_type: string;
   status: 'registered' | 'pending';
+  storage_path: string | null;
 }
 
 function loadLocalWorks(): MusicalWork[] {
@@ -56,10 +58,12 @@ function fromRow(row: WorkRow): MusicalWork {
     fileSize: row.file_size,
     fileType: row.file_type,
     status: row.status,
+    hasStoredAudio: Boolean(row.storage_path),
+  uploadId: undefined,
   };
 }
 
-function toRow(work: MusicalWork, userId: string): WorkRow {
+function toRow(work: MusicalWork, userId: string): Omit<WorkRow, 'storage_path'> & { storage_path: string | null } {
   return {
     id: work.id,
     user_id: userId,
@@ -78,7 +82,13 @@ function toRow(work: MusicalWork, userId: string): WorkRow {
     file_size: work.fileSize,
     file_type: work.fileType,
     status: work.status,
+    storage_path: null,
   };
+}
+
+function audioPath(userId: string, workId: string, fileName: string): string {
+  const safeName = fileName.normalize('NFKD').replace(/[^a-zA-Z0-9._-]+/g, '-').slice(-180) || 'audio';
+  return `${userId}/${workId}/${safeName}`;
 }
 
 export async function listWorks(userId: string): Promise<MusicalWork[]> {
@@ -146,13 +156,33 @@ export async function createWork(userId: string, work: MusicalWork, file?: File)
     return nextWork;
   }
 
+  let storagePath: string | null = null;
+
+  if (file) {
+    storagePath = audioPath(userId, work.id, work.fileName);
+    const { error: uploadError } = await supabase.storage
+      .from(AUDIO_BUCKET)
+      .upload(storagePath, file, { contentType: work.fileType, upsert: false });
+
+    if (uploadError) {
+      throw new Error(`Audio upload failed: ${uploadError.message}`);
+    }
+  }
+
+  const row = toRow(work, userId);
   const { data, error } = await supabase
     .from('works')
-    .insert(toRow(work, userId))
+    .insert({ ...row, storage_path: storagePath })
     .select()
     .single();
 
-  if (error) throw error;
+  if (error) {
+    if (storagePath) {
+      await supabase.storage.from(AUDIO_BUCKET).remove([storagePath]);
+    }
+    throw error;
+  }
+
   return fromRow(data as WorkRow);
 }
 
@@ -168,6 +198,17 @@ export async function removeWork(userId: string, workId: string): Promise<void> 
     return;
   }
 
+  const { data: row } = await supabase
+    .from('works')
+    .select('storage_path')
+    .eq('id', workId)
+    .eq('user_id', userId)
+    .maybeSingle();
+
+  if (row?.storage_path) {
+    await supabase.storage.from(AUDIO_BUCKET).remove([row.storage_path]);
+  }
+
   const { error } = await supabase
     .from('works')
     .delete()
@@ -178,6 +219,30 @@ export async function removeWork(userId: string, workId: string): Promise<void> 
 }
 
 export async function getWorkAudioUrl(workId: string): Promise<string> {
-  const response = await apiRequest<{ url: string }>(`/v1/works/${encodeURIComponent(workId)}/audio`);
-  return response.url;
+  if (isApiConfigured) {
+    const response = await apiRequest<{ url: string }>(`/v1/works/${encodeURIComponent(workId)}/audio`);
+    return response.url;
+  }
+
+  if (!supabase) {
+    throw new Error('Audio download is not available in local mode.');
+  }
+
+  const { data: row, error: queryError } = await supabase
+    .from('works')
+    .select('storage_path, user_id')
+    .eq('id', workId)
+    .maybeSingle();
+
+  if (queryError) throw queryError;
+  if (!row?.storage_path) {
+    throw new Error('No stored audio found for this record.');
+  }
+
+  const { data, error } = await supabase.storage
+    .from(AUDIO_BUCKET)
+    .createSignedUrl(row.storage_path, 300);
+
+  if (error) throw error;
+  return data.signedUrl;
 }
