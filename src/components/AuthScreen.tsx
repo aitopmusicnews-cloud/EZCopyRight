@@ -32,10 +32,10 @@ export default function AuthScreen({
   const [error, setError] = useState('');
   const [acceptedPolicies, setAcceptedPolicies] = useState(false);
 
-  const authModeLabel = authMode === 'cognito'
-    ? 'AWS Cognito secure cloud'
-    : authMode === 'supabase'
-      ? 'Supabase secure cloud'
+  const authModeLabel = authMode === 'supabase'
+    ? 'Supabase secure cloud'
+    : authMode === 'cognito'
+      ? 'AWS Cognito secure cloud'
       : 'Local demo fallback';
 
   const switchMode = () => {
@@ -120,11 +120,11 @@ export default function AuthScreen({
             </h1>
             <p className="text-white/60 leading-relaxed mb-6">
               Accounts tie your evidence records to a specific identity instead of leaving everything in a shared browser profile.
-              AWS Cognito provides managed account registration, email verification, secure sign-in, and session tokens.
+              Sign-in is managed through a secure hosted account service so your credentials and session are protected.
             </p>
             <div className="space-y-3 text-sm text-white/65">
               <div className="rounded-2xl border border-white/10 bg-black/20 p-4">Authenticated access reduces casual tampering and cross-user mixing.</div>
-              <div className="rounded-2xl border border-white/10 bg-black/20 p-4">AWS-managed accounts create a stronger foundation for the upcoming cloud database and file storage.</div>
+              <div className="rounded-2xl border border-white/10 bg-black/20 p-4">Managed accounts create a stronger foundation for cloud-backed database and file storage.</div>
               <div className="rounded-2xl border border-white/10 bg-black/20 p-4">You still need formal copyright registration for stronger legal protection.</div>
             </div>
           </div>
@@ -152,7 +152,7 @@ export default function AuthScreen({
               <div className="mb-6 rounded-2xl border border-amber-500/20 bg-amber-500/10 p-4 text-sm text-white/70 flex gap-3">
                 <ShieldAlert className="w-5 h-5 text-amber-300 flex-shrink-0 mt-0.5" />
                 <span>
-                  AWS Cognito environment variables are not configured, so this screen is using local demo authentication.
+                  Cloud account settings are not configured, so this screen is using local demo authentication.
                 </span>
               </div>
             )}
@@ -160,7 +160,7 @@ export default function AuthScreen({
             {awaitingConfirmation && (
               <div className="mb-6 rounded-2xl border border-emerald-500/20 bg-emerald-500/10 p-4 text-sm text-white/75 flex gap-3">
                 <MailCheck className="w-5 h-5 text-emerald-300 flex-shrink-0 mt-0.5" />
-                <span>Enter the confirmation code AWS sent to <strong>{email}</strong>.</span>
+                <span>Enter the confirmation code sent to <strong>{email}</strong>.</span>
               </div>
             )}
 
