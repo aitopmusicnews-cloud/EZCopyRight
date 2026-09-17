@@ -5,7 +5,7 @@ const outputDirectory = resolve('dist');
 const entryFile = resolve(outputDirectory, 'index.html');
 const staticRoutes = ['terms', 'privacy', 'refund-policy'];
 const oldLogoPath = '/ez-way-logo.png';
-const newLogoPath = '/ez-way-logo-correct.svg';
+const newLogoPath = '/ez-way-logo-new.webp';
 
 const entryHtml = await readFile(entryFile, 'utf8');
 await writeFile(entryFile, entryHtml.replaceAll(oldLogoPath, newLogoPath));

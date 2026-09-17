@@ -126,7 +126,7 @@ export default function Certificate({ work, onBack, onDashboard, onLegalNavigate
               <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-orange-500/50 to-transparent" />
 
               <div className="flex items-center justify-center gap-3 mb-4">
-                <img src="/ez-way-logo.png" alt="THE EZ WAY" className="w-14 h-14 object-contain" />
+                <img src="/ez-way-logo-new.webp" alt="THE EZ WAY" className="w-14 h-14 object-contain" />
                 <span className="text-2xl font-bold text-white tracking-wide">THE EZ WAY</span>
               </div>
               <h1 className="text-3xl sm:text-4xl font-bold text-white mb-2" style={{ fontFamily: 'Playfair Display, serif' }}>
@@ -213,7 +213,7 @@ export default function Certificate({ work, onBack, onDashboard, onLegalNavigate
 
               <div className="border-t border-white/10 pt-6 text-center">
                 <div className="flex justify-center mb-3">
-                  <img src="/ez-way-logo.png" alt="THE EZ WAY" className="w-10 h-10 object-contain opacity-50" />
+                  <img src="/ez-way-logo-new.webp" alt="THE EZ WAY" className="w-10 h-10 object-contain opacity-50" />
                 </div>
                 <p className="text-xs text-white/30 leading-relaxed">
                   This certificate confirms that the above-described work was documented with EZ Copyright by THE EZ WAY on the stated date.

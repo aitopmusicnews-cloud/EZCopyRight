@@ -373,7 +373,7 @@ export default function LegalPage({ page, onBack, onNavigate }: Props) {
       <main className="mx-auto max-w-4xl px-4 py-10 sm:py-16">
         <div className="mb-10 border-b border-white/10 pb-8">
           <div className="mb-5 flex items-center gap-3">
-            <img src="/ez-way-logo.png" alt="THE EZ WAY" className="h-12 w-12 object-contain" />
+            <img src="/ez-way-logo-new.webp" alt="THE EZ WAY" className="h-12 w-12 object-contain" />
             <div>
               <p className="text-xs font-semibold uppercase tracking-[0.2em] text-orange-300">EZ Copyright</p>
               <p className="text-sm text-white/45">A THE EZ WAY service</p>

@@ -104,7 +104,7 @@ export default function LandingHero({
             {/* Logo */}
             <div className="flex justify-center mb-8">
               <img
-                src="/ez-way-logo.png"
+                src="/ez-way-logo-new.webp"
                 alt="THE EZ WAY"
                 className="w-36 h-36 sm:w-44 sm:h-44 object-contain drop-shadow-2xl"
                 style={{ filter: 'drop-shadow(0 0 30px rgba(245, 158, 11, 0.25))' }}

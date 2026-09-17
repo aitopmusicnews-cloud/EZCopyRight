@@ -16,7 +16,7 @@ export default function LegalFooter({ onNavigate, showBrand = false }: Props) {
     <footer className="border-t border-white/10 bg-neutral-950 px-4 py-8 text-center">
       {showBrand && (
         <div className="mb-3 flex items-center justify-center gap-3">
-          <img src="/ez-way-logo.png" alt="THE EZ WAY" className="h-8 w-8 object-contain" />
+          <img src="/ez-way-logo-new.webp" alt="THE EZ WAY" className="h-8 w-8 object-contain" />
           <span className="text-lg font-bold text-white">THE EZ WAY</span>
         </div>
       )}
