@@ -67,19 +67,33 @@ export default function Dashboard({ works, isLoading, userEmail, onBack, onRegis
       </div>
 
       <div className="max-w-6xl mx-auto px-4 py-8 sm:py-12">
-        {billing && (
-          <div className={`mb-8 rounded-2xl border p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 ${billing.active ? 'border-emerald-500/20 bg-emerald-500/10' : 'border-orange-500/25 bg-orange-500/10'}`}>
+        {(!billing || !billing.active) && (
+          <div className="mb-8 rounded-2xl border border-orange-500/25 bg-orange-500/10 p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div className="flex items-start gap-3">
-              <CreditCard className={billing.active ? 'text-emerald-400' : 'text-orange-400'} />
+              <CreditCard className="text-orange-400" />
               <div>
-                <p className="font-semibold text-white">{billing.active ? 'EZ Copyright Membership' : '$20.00 monthly membership required'}</p>
+                <p className="font-semibold text-white">$20.00 monthly membership required</p>
+                <p className="text-sm text-white/55">Includes 5 private evidence records each month.</p>
+              </div>
+            </div>
+            <button onClick={onSubscribe} className="rounded-xl bg-orange-600 hover:bg-orange-500 px-4 py-2 text-sm font-medium text-white cursor-pointer">
+              Subscribe
+            </button>
+          </div>
+        )}
+        {billing?.active && (
+          <div className="mb-8 rounded-2xl border border-emerald-500/20 bg-emerald-500/10 p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="flex items-start gap-3">
+              <CreditCard className="text-emerald-400" />
+              <div>
+                <p className="font-semibold text-white">EZ Copyright Membership</p>
                 <p className="text-sm text-white/55">
-                  {billing.active ? `${billing.remaining} of ${billing.limit} evidence records remaining this billing month` : 'Includes 5 private evidence records each month.'}
+                  {billing.remaining} of {billing.limit} evidence records remaining this billing month
                 </p>
               </div>
             </div>
-            <button onClick={billing.active ? onManageBilling : onSubscribe} className="rounded-xl bg-orange-600 hover:bg-orange-500 px-4 py-2 text-sm font-medium text-white cursor-pointer">
-              {billing.active ? 'Manage Billing' : 'Subscribe'}
+            <button onClick={onManageBilling} className="rounded-xl bg-orange-600 hover:bg-orange-500 px-4 py-2 text-sm font-medium text-white cursor-pointer">
+              Manage Billing
             </button>
           </div>
         )}

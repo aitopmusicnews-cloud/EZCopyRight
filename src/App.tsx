@@ -124,7 +124,21 @@ export default function App() {
       setBilling(null);
       return;
     }
-    getBillingStatus().then(setBilling).catch(() => setBilling(null));
+    getBillingStatus()
+      .then(setBilling)
+      .catch((error) => {
+        setBilling({
+          configured: true,
+          active: false,
+          status: 'error',
+          used: 0,
+          limit: 5,
+          remaining: 0,
+          currentPeriodEnd: null,
+          cancelAtPeriodEnd: false,
+        });
+        setAppError(error instanceof Error ? error.message : 'Could not load your membership status.');
+      });
   }, [authUser]);
 
   const navigateProtected = (target: 'register' | 'dashboard') => {
@@ -231,15 +245,24 @@ export default function App() {
     );
   }
 
+  const errorBanner = appError ? (
+    <div className="fixed top-4 left-1/2 -translate-x-1/2 z-[60] max-w-md rounded-2xl border border-red-500/30 bg-red-500/15 px-4 py-3 text-sm text-red-100 shadow-lg flex items-start gap-3">
+      <span className="flex-1">{appError}</span>
+      <button
+        onClick={() => setAppError('')}
+        className="text-red-200/70 hover:text-white transition cursor-pointer"
+        aria-label="Dismiss"
+      >
+        ×
+      </button>
+    </div>
+  ) : null;
+
   switch (page) {
     case 'landing':
       return (
         <>
-          {appError && (
-            <div className="fixed top-4 left-1/2 -translate-x-1/2 z-[60] rounded-2xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-100">
-              {appError}
-            </div>
-          )}
+          {errorBanner}
           <LandingHero
             onNavigate={navigateProtected}
             workCount={works.length}
@@ -265,6 +288,8 @@ export default function App() {
       );
     case 'auth':
       return (
+        <>
+        {errorBanner}
         <AuthScreen
           authMode={authMode}
           targetLabel={authTargetPage === 'register' ? 'new registrations' : 'your dashboard'}
@@ -274,26 +299,35 @@ export default function App() {
           onConfirmSignUp={handleConfirmSignUp}
           onLegalNavigate={navigateLegal}
         />
+        </>
       );
     case 'register':
       return (
+        <>
+        {errorBanner}
         <RegisterForm
           onBack={navigateHome}
           onRegister={handleRegister}
           onLegalNavigate={navigateLegal}
         />
+        </>
       );
     case 'certificate':
       return selectedWork ? (
+        <>
+        {errorBanner}
         <Certificate
           work={selectedWork}
           onBack={navigateHome}
           onDashboard={() => setPage('dashboard')}
           onLegalNavigate={navigateLegal}
         />
+        </>
       ) : null;
     case 'dashboard':
       return (
+        <>
+        {errorBanner}
         <Dashboard
           works={works}
           isLoading={worksLoading}
@@ -317,16 +351,20 @@ export default function App() {
             void openBillingPortal().catch((error) => setAppError(error instanceof Error ? error.message : 'Billing could not be opened.'));
           }}
         />
+        </>
       );
     case 'terms':
     case 'privacy':
     case 'refund-policy':
       return (
+        <>
+        {errorBanner}
         <LegalPage
           page={page}
           onBack={navigateHome}
           onNavigate={navigateLegal}
         />
+        </>
       );
     default:
       return null;
