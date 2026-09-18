@@ -69,24 +69,50 @@ async function cognitoRequest<T>(target: string, body: Record<string, unknown>):
   return data as T;
 }
 
+async function refreshSession(session: CognitoSession): Promise<CognitoSession | null> {
+  if (!session.refreshToken) return null;
+  try {
+    const data = await cognitoRequest<{
+      AuthenticationResult?: { AccessToken?: string; IdToken?: string; ExpiresIn?: number };
+    }>('InitiateAuth', {
+      AuthFlow: 'REFRESH_TOKEN_AUTH',
+      ClientId: COGNITO_CLIENT_ID,
+      AuthParameters: { REFRESH_TOKEN: session.refreshToken },
+    });
+    const auth = data.AuthenticationResult;
+    if (!auth?.AccessToken) return null;
+    const refreshed: CognitoSession = {
+      ...session,
+      accessToken: auth.AccessToken,
+      idToken: auth.IdToken || session.idToken,
+      expiresAt: Date.now() + (auth.ExpiresIn || 3600) * 1000,
+    };
+    writeSession(refreshed);
+    return refreshed;
+  } catch {
+    writeSession(null);
+    return null;
+  }
+}
+
+async function getValidSession(): Promise<CognitoSession | null> {
+  const session = readSession();
+  if (!session) return null;
+  // Refresh slightly before expiration so an API request never starts with a stale token.
+  if (session.expiresAt > Date.now() + 60_000) return session;
+  return refreshSession(session);
+}
+
 export function getAuthMode(): AuthMode {
   return 'cognito';
 }
 
 export async function getCurrentUser(): Promise<AuthUser | null> {
-  const session = readSession();
-  if (!session) return null;
-  if (session.expiresAt <= Date.now()) {
-    writeSession(null);
-    return null;
-  }
-  return session.user;
+  return (await getValidSession())?.user ?? null;
 }
 
 export async function getAccessToken(): Promise<string | null> {
-  const session = readSession();
-  if (!session || session.expiresAt <= Date.now()) return null;
-  return session.accessToken;
+  return (await getValidSession())?.accessToken ?? null;
 }
 
 export function subscribeToAuthChanges(callback: (user: AuthUser | null) => void): () => void {
@@ -146,7 +172,8 @@ export async function confirmSignUp(email: string, password: string, confirmatio
 }
 
 export async function signOut(): Promise<void> {
-  const token = await getAccessToken();
+  const session = readSession();
+  const token = session?.accessToken;
   writeSession(null);
   if (!token) return;
   try {
