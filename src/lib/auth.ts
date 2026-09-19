@@ -226,6 +226,26 @@ export async function confirmSignUp(email: string, password: string, confirmatio
   return result.user;
 }
 
+export async function forgotPassword(email: string): Promise<void> {
+  await cognitoRequest('ForgotPassword', {
+    ClientId: COGNITO_CLIENT_ID,
+    Username: email,
+  });
+}
+
+export async function confirmForgotPassword(
+  email: string,
+  confirmationCode: string,
+  newPassword: string,
+): Promise<void> {
+  await cognitoRequest('ConfirmForgotPassword', {
+    ClientId: COGNITO_CLIENT_ID,
+    Username: email,
+    ConfirmationCode: confirmationCode,
+    Password: newPassword,
+  });
+}
+
 export async function signOut(): Promise<void> {
   const session = readSession();
   const token = session?.accessToken;
