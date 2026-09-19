@@ -46,6 +46,36 @@ test('protected endpoints reject requests without a bearer token', async () => {
   assert.equal((await response.json()).error, 'authentication_required');
 });
 
+test('subscription checkout can start before account sign-in', async () => {
+  const database = { query: async () => ({ rows: [] }) };
+  let checkoutArgs = null;
+  const billing = {
+    createCheckout: async (args) => {
+      checkoutArgs = args;
+      return { id: 'cs_guest', url: 'https://checkout.example/session' };
+    },
+  };
+  const app = createApp({
+    database,
+    config,
+    storage,
+    billing,
+    verifyToken: async () => {
+      throw new Error('Guest checkout should not verify a token.');
+    },
+  });
+  const response = await request(app, '/v1/billing/checkout', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({}),
+  });
+
+  assert.equal(response.status, 201);
+  assert.equal((await response.json()).url, 'https://checkout.example/session');
+  assert.equal(checkoutArgs.userId, null);
+  assert.equal(checkoutArgs.email, null);
+});
+
 test('work creation uses authenticated ownership and server evidence fields', async () => {
   const queries = [];
   const database = {
