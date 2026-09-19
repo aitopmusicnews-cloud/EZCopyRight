@@ -48,12 +48,14 @@ export default function Dashboard({ works, isLoading, userEmail, onBack, onRegis
           </div>
           <div className="flex items-center gap-3">
             {userEmail && <span className="hidden md:block text-sm text-white/40">{userEmail}</span>}
-            <button
-              onClick={onSignOut}
-              className="text-sm text-white/60 hover:text-white px-3 py-2 rounded-lg hover:bg-white/10 transition cursor-pointer"
-            >
-              Sign Out
-            </button>
+            {userEmail && (
+              <button
+                onClick={onSignOut}
+                className="text-sm text-white/60 hover:text-white px-3 py-2 rounded-lg hover:bg-white/10 transition cursor-pointer"
+              >
+                Sign Out
+              </button>
+            )}
             <button
               onClick={onRegister}
               disabled={Boolean(billing && !billing.active)}
