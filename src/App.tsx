@@ -28,7 +28,7 @@ function pageFromPath(pathname: string): Page {
   const normalizedPath = pathname.replace(/\/+$/, '') || '/';
   const legalPage = (Object.entries(legalPathByPage) as Array<[LegalPageId, string]>)
     .find(([, path]) => path === normalizedPath)?.[0];
-  return legalPage ?? 'dashboard';
+  return legalPage ?? 'landing';
 }
 
 export default function App() {
@@ -54,7 +54,7 @@ export default function App() {
     if (window.location.pathname !== '/') {
       window.history.pushState({}, '', '/');
     }
-    setPage('dashboard');
+    setPage('landing');
   };
 
   useEffect(() => {
@@ -284,7 +284,7 @@ export default function App() {
         {errorBanner}
         <AuthScreen
           targetLabel={authTargetPage === 'register' ? 'new registrations' : 'your dashboard'}
-          onBack={() => setPage('dashboard')}
+          onBack={() => setPage('landing')}
           onSignIn={handleSignIn}
           onSignUp={handleSignUp}
           onConfirmSignUp={handleConfirmSignUp}
@@ -323,7 +323,7 @@ export default function App() {
           works={works}
           isLoading={worksLoading}
           userEmail={authUser?.email ?? null}
-          onBack={() => setPage('landing')}
+          onBack={navigateHome}
           onRegister={() => navigateProtected('register')}
           onViewCertificate={handleViewCertificate}
           onDownloadAudio={(id) => { void handleDownloadAudio(id); }}
