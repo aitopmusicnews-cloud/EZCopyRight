@@ -28,7 +28,7 @@ function pageFromPath(pathname: string): Page {
   const normalizedPath = pathname.replace(/\/+$/, '') || '/';
   const legalPage = (Object.entries(legalPathByPage) as Array<[LegalPageId, string]>)
     .find(([, path]) => path === normalizedPath)?.[0];
-  return legalPage ?? 'landing';
+  return legalPage ?? 'dashboard';
 }
 
 export default function App() {
@@ -54,7 +54,7 @@ export default function App() {
     if (window.location.pathname !== '/') {
       window.history.pushState({}, '', '/');
     }
-    setPage('landing');
+    setPage('dashboard');
   };
 
   useEffect(() => {
@@ -284,7 +284,7 @@ export default function App() {
         {errorBanner}
         <AuthScreen
           targetLabel={authTargetPage === 'register' ? 'new registrations' : 'your dashboard'}
-          onBack={() => setPage('landing')}
+          onBack={() => setPage('dashboard')}
           onSignIn={handleSignIn}
           onSignUp={handleSignUp}
           onConfirmSignUp={handleConfirmSignUp}
@@ -323,7 +323,7 @@ export default function App() {
           works={works}
           isLoading={worksLoading}
           userEmail={authUser?.email ?? null}
-          onBack={navigateHome}
+          onBack={() => setPage('landing')}
           onRegister={() => navigateProtected('register')}
           onViewCertificate={handleViewCertificate}
           onDownloadAudio={(id) => { void handleDownloadAudio(id); }}
@@ -336,6 +336,11 @@ export default function App() {
           onLegalNavigate={navigateLegal}
           billing={billing}
           onSubscribe={() => {
+            if (!authUser) {
+              setAuthTargetPage('dashboard');
+              setPage('auth');
+              return;
+            }
             void startCheckout().catch((error) => setAppError(error instanceof Error ? error.message : 'Checkout could not be opened.'));
           }}
           onManageBilling={() => {
