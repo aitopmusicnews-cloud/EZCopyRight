@@ -72,7 +72,7 @@ export default function Dashboard({ works, isLoading, userEmail, onBack, onRegis
             <div className="flex items-start gap-3">
               <CreditCard className="text-orange-400" />
               <div>
-                <p className="font-semibold text-white">$20.00 monthly membership required</p>
+                <p className="font-semibold text-white">$25.00 monthly membership required</p>
                 <p className="text-sm text-white/55">Includes 5 private evidence records each month.</p>
               </div>
             </div>
