@@ -57,6 +57,8 @@ export function loadConfig(environment = process.env) {
       ? false
       : !databaseUrl.includes('localhost') && !databaseUrl.includes('127.0.0.1'),
     cognitoIssuer: `https://cognito-idp.${region}.amazonaws.com/${userPoolId}`,
+    cognitoRegion: region,
+    cognitoUserPoolId: userPoolId,
     cognitoClientId: clientId,
     allowedOrigins: parseOrigins(environment.CORS_ALLOWED_ORIGINS || '', nodeEnvironment),
     policyVersion: environment.POLICY_VERSION?.trim() || '2026-08-13',
