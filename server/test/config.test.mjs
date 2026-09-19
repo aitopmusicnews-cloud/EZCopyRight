@@ -17,6 +17,9 @@ test('production config reports every missing required variable', () => {
     (error) => {
       assert.match(error.message, /DATABASE_URL/);
       assert.match(error.message, /S3_BUCKET/);
+      assert.match(error.message, /COGNITO_REGION/);
+      assert.match(error.message, /COGNITO_USER_POOL_ID/);
+      assert.match(error.message, /COGNITO_CLIENT_ID/);
       assert.match(error.message, /CORS_ALLOWED_ORIGINS/);
       assert.match(error.message, /APP_BASE_URL/);
       assert.match(error.message, /STRIPE_SECRET_KEY/);
@@ -32,6 +35,9 @@ test('production config accepts a complete environment', () => {
     NODE_ENV: 'production',
     DATABASE_URL: 'postgres://example.test/database',
     S3_BUCKET: 'ezcopyright-private',
+    COGNITO_REGION: 'us-west-2',
+    COGNITO_USER_POOL_ID: 'us-west-2_example',
+    COGNITO_CLIENT_ID: 'example-client-id',
     CORS_ALLOWED_ORIGINS: 'https://app.example, https://www.example/',
     APP_BASE_URL: 'https://app.example/',
     STRIPE_SECRET_KEY: 'test-secret',
@@ -42,4 +48,6 @@ test('production config accepts a complete environment', () => {
   const config = loadConfig(environment);
   assert.deepEqual(config.allowedOrigins, ['https://app.example', 'https://www.example']);
   assert.equal(config.appBaseUrl, 'https://app.example');
+  assert.equal(config.cognitoIssuer, 'https://cognito-idp.us-west-2.amazonaws.com/us-west-2_example');
+  assert.equal(config.cognitoClientId, 'example-client-id');
 });
