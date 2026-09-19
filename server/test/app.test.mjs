@@ -2,6 +2,8 @@ import assert from 'node:assert/strict';
 import { once } from 'node:events';
 import test from 'node:test';
 import { createApp } from '../app.mjs';
+import { createStripeBilling } from '../billing.mjs';
+import { createCognitoAccountManager } from '../cognito-admin.mjs';
 
 const config = {
   nodeEnvironment: 'test',
@@ -29,6 +31,11 @@ async function request(app, path, init) {
     await new Promise((resolve) => server.close(resolve));
   }
 }
+
+test('billing and Cognito provisioning modules load', () => {
+  assert.equal(typeof createStripeBilling, 'function');
+  assert.equal(typeof createCognitoAccountManager, 'function');
+});
 
 test('liveness endpoint does not require authentication', async () => {
   const database = { query: async () => ({ rows: [] }) };
