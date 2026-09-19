@@ -74,12 +74,12 @@ export default function Dashboard({ works, isLoading, userEmail, onBack, onRegis
             <div className="flex items-start gap-3">
               <CreditCard className="text-orange-400" />
               <div>
-                <p className="font-semibold text-white">$25.00 monthly membership required</p>
-                <p className="text-sm text-white/55">Includes 5 private evidence records each month.</p>
+                <p className="font-semibold text-white">Start with a 7-day free trial</p>
+                <p className="text-sm text-white/55">No card required. Includes 5 private evidence records each month, then $25/month if you continue.</p>
               </div>
             </div>
             <button onClick={onSubscribe} className="rounded-xl bg-orange-600 hover:bg-orange-500 px-4 py-2 text-sm font-medium text-white cursor-pointer">
-              Subscribe
+              Start Free Trial
             </button>
           </div>
         )}
