@@ -3,11 +3,13 @@ import { loadConfig } from './config.mjs';
 import { createDatabase, runMigrations } from './db.mjs';
 import { createS3Storage } from './storage.mjs';
 import { createStripeBilling } from './billing.mjs';
+import { createCognitoAccountManager } from './cognito-admin.mjs';
 
 const config = loadConfig();
 const database = createDatabase(config);
 const storage = createS3Storage(config);
-const billing = createStripeBilling(config);
+const accounts = createCognitoAccountManager(config);
+const billing = createStripeBilling(config, { accounts });
 
 await runMigrations(database);
 
