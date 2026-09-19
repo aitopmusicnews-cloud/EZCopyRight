@@ -22,6 +22,6 @@ Policy version: `2026-08-13`
 - Store consent on the server using authenticated user ID, policy type, policy version, acceptance timestamp, request ID, and source flow.
 - Require the current policy versions at checkout and store checkout consent server-side.
 - Provide authenticated account export and deletion requests, plus an internal fulfillment workflow.
-- Confirm the final list of subprocessors and infrastructure regions after the Render-backed production architecture is deployed.
+- Confirm the final list of subprocessors and infrastructure regions after the AWS App Runner production architecture is deployed.
 - Confirm final prices, subscription behavior, cancellation behavior, taxes, and refund handling before enabling live Stripe payments.
 - Re-review the policies whenever collection, storage, analytics, advertising, subprocessors, payment terms, or user eligibility changes.

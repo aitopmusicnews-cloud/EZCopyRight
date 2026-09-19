@@ -1,6 +1,6 @@
 # Amplify launch configuration
 
-The repository-level `amplify.yml` builds the Vite application with the EZ Copyright Cognito configuration and publishes `dist/`.
+The repository-level `amplify.yml` builds the Vite application and publishes `dist/`. The frontend uses AWS Cognito and calls the AWS App Runner API.
 
 ## Build configuration
 
@@ -12,7 +12,7 @@ The build uses these production defaults unless the Amplify app overrides them:
 
 These identifiers are public client configuration, not credentials. Secrets must never be placed in `VITE_*` variables.
 
-`VITE_API_BASE_URL` will be added when the production Render API is ready. The current frontend does not consume that variable yet.
+Set `VITE_API_BASE_URL` to the exact AWS App Runner service URL without a trailing slash. Both billing and work-registration requests consume this variable. The source code retains the current App Runner URL as a fallback, but the Amplify value is the production source of truth.
 
 ## Legal routes
 

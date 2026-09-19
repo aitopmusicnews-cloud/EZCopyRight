@@ -1,7 +1,6 @@
 import type { MusicalWork } from '../types';
 import { getAccessToken } from './auth';
-
-const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || 'https://s3qmbjubgp.us-west-2.awsapprunner.com').replace(/\/$/, '');
+import { API_BASE_URL } from './api';
 
 async function authHeaders(json = false): Promise<Record<string, string>> {
   const token = await getAccessToken();

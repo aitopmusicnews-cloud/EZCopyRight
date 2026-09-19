@@ -8,7 +8,6 @@ import LegalPage from './components/LegalPage';
 import type { LegalPageId, MusicalWork, Page } from './types';
 import {
   confirmSignUp,
-  getAuthMode,
   getCurrentUser,
   signIn,
   signOut,
@@ -37,7 +36,6 @@ export default function App() {
   const [works, setWorks] = useState<MusicalWork[]>([]);
   const [selectedWork, setSelectedWork] = useState<MusicalWork | null>(null);
   const [authUser, setAuthUser] = useState<AuthUser | null>(null);
-  const [authMode] = useState(getAuthMode());
   const [authReady, setAuthReady] = useState(false);
   const [worksLoading, setWorksLoading] = useState(false);
   const [appError, setAppError] = useState('');
@@ -268,11 +266,7 @@ export default function App() {
             workCount={works.length}
             isAuthenticated={Boolean(authUser)}
             userEmail={authUser?.email ?? null}
-            authModeLabel={
-              authMode === 'supabase'
-                ? 'Supabase secure cloud'
-                : 'Local demo mode'
-            }
+            authModeLabel="AWS Cognito secure cloud"
             onAuthAction={() => {
               setAuthTargetPage('dashboard');
               setPage('auth');
@@ -289,7 +283,6 @@ export default function App() {
         <>
         {errorBanner}
         <AuthScreen
-          authMode={authMode}
           targetLabel={authTargetPage === 'register' ? 'new registrations' : 'your dashboard'}
           onBack={() => setPage('landing')}
           onSignIn={handleSignIn}

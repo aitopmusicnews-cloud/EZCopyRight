@@ -10,7 +10,7 @@ The production frontend is hosted by AWS Amplify. The API is deployed as an AWS 
 - Container command: `npm run start:api`
 - Health check protocol: HTTP
 - Health check path: `/health/ready`
-- Application port: use the App Runner `PORT` value; the server binds to `0.0.0.0`
+- Application port: `8080`; the server honors `PORT` and binds to `0.0.0.0`
 - Automatic deployment: enable only after GitHub launch checks are green
 
 The frontend must set:

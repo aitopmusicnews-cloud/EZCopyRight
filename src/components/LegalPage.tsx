@@ -201,7 +201,7 @@ function Privacy() {
       <Section title="4. How we disclose information">
         <p>We may disclose information to:</p>
         <List>
-          <li><strong className="text-white/80">Infrastructure providers,</strong> including Amazon Web Services and Render, for hosting, authentication, databases, file storage, security, and email delivery.</li>
+          <li><strong className="text-white/80">Infrastructure providers,</strong> including Amazon Web Services, for hosting, authentication, databases, file storage, security, and email delivery.</li>
           <li><strong className="text-white/80">Payment processors,</strong> including Stripe, to process purchases, refunds, fraud screening, and billing support.</li>
           <li><strong className="text-white/80">Professional advisers and authorities</strong> when reasonably necessary for legal, accounting, security, compliance, or protection of rights and safety.</li>
           <li><strong className="text-white/80">Transaction participants</strong> in a merger, financing, acquisition, reorganization, or sale of assets, subject to appropriate confidentiality protections.</li>
