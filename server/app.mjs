@@ -177,6 +177,25 @@ export function createApp({
     }
   });
 
+  const authenticateIfPresent = asyncRoute(async (request, response, next) => {
+    const authorization = request.get('authorization') || '';
+    if (!authorization) {
+      next();
+      return;
+    }
+    const match = authorization.match(/^Bearer\s+(.+)$/i);
+    if (!match) {
+      response.status(401).json({ error: 'invalid_authentication', requestId: request.id });
+      return;
+    }
+    try {
+      request.auth = await verifyToken(match[1]);
+      next();
+    } catch {
+      response.status(401).json({ error: 'invalid_authentication', requestId: request.id });
+    }
+  });
+
   const writeLimiter = rateLimit({
     windowMs: 15 * 60 * 1000,
     limit: 30,
@@ -205,9 +224,11 @@ export function createApp({
     response.json(await billing.status(database, request.auth.userId));
   }));
 
-  app.post('/v1/billing/checkout', authenticate, writeLimiter, asyncRoute(async (request, response) => {
+  app.post('/v1/billing/checkout', authenticateIfPresent, writeLimiter, asyncRoute(async (request, response) => {
     const session = await billing.createCheckout({
-      database, userId: request.auth.userId, email: request.auth.email,
+      database,
+      userId: request.auth?.userId ?? null,
+      email: request.auth?.email ?? null,
     });
     await recordAudit(database, request, 'billing.checkout_created', 'checkout', session.id);
     response.status(201).json({ url: session.url });
