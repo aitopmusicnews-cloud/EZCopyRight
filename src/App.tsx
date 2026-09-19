@@ -97,10 +97,13 @@ export default function App() {
     const cleanUrl = window.location.pathname;
     window.history.replaceState({}, '', cleanUrl);
 
-    if (!authUser) {
-      setAuthTargetPage('dashboard');
-      setPage('auth');
+    if (authUser) {
+      setPostCheckout(false);
+      return;
     }
+
+    setAuthTargetPage('dashboard');
+    setPage('auth');
   }, [authReady, authUser, postCheckout]);
 
   useEffect(() => {
