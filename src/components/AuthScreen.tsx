@@ -1,11 +1,9 @@
 import { useState } from 'react';
-import { ArrowLeft, LockKeyhole, Mail, MailCheck, ShieldAlert } from 'lucide-react';
-import type { AuthMode } from '../lib/auth';
+import { ArrowLeft, LockKeyhole, Mail, MailCheck } from 'lucide-react';
 import type { LegalPageId } from '../types';
 import LegalFooter from './LegalFooter';
 
 interface Props {
-  authMode: AuthMode;
   targetLabel: string;
   onBack: () => void;
   onSignIn: (email: string, password: string) => Promise<void>;
@@ -15,7 +13,6 @@ interface Props {
 }
 
 export default function AuthScreen({
-  authMode,
   targetLabel,
   onBack,
   onSignIn,
@@ -32,9 +29,7 @@ export default function AuthScreen({
   const [error, setError] = useState('');
   const [acceptedPolicies, setAcceptedPolicies] = useState(false);
 
-  const authModeLabel = authMode === 'supabase'
-    ? 'Supabase secure cloud'
-    : 'Local demo fallback';
+  const authModeLabel = 'AWS Cognito secure cloud';
 
   const switchMode = () => {
     setIsSignUp((value) => !value);
@@ -42,19 +37,6 @@ export default function AuthScreen({
     setConfirmationCode('');
     setError('');
     setAcceptedPolicies(false);
-  };
-
-  const openConfirmationEntry = () => {
-    if (!email.trim() || !password) {
-      setIsSignUp(true);
-      setError('Enter the email and password used to create the account, then choose “Enter confirmation code” again.');
-      return;
-    }
-
-    setIsSignUp(true);
-    setAwaitingConfirmation(true);
-    setConfirmationCode('');
-    setError('');
   };
 
   const handleSubmit = async (event: React.FormEvent) => {
@@ -145,15 +127,6 @@ export default function AuthScreen({
                 </button>
               )}
             </div>
-
-            {authMode === 'local' && (
-              <div className="mb-6 rounded-2xl border border-amber-500/20 bg-amber-500/10 p-4 text-sm text-white/70 flex gap-3">
-                <ShieldAlert className="w-5 h-5 text-amber-300 flex-shrink-0 mt-0.5" />
-                <span>
-                  Cloud account settings are not configured, so this screen is using local demo authentication.
-                </span>
-              </div>
-            )}
 
             {awaitingConfirmation && (
               <div className="mb-6 rounded-2xl border border-emerald-500/20 bg-emerald-500/10 p-4 text-sm text-white/75 flex gap-3">

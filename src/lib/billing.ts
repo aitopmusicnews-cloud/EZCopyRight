@@ -1,4 +1,5 @@
 import { getAccessToken } from './auth';
+import { API_BASE_URL } from './api';
 
 export interface BillingStatus {
   configured: boolean;
@@ -12,8 +13,6 @@ export interface BillingStatus {
 }
 
 const MONTHLY_LIMIT = 5;
-const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || 'https://s3qmbjubgp.us-west-2.awsapprunner.com').replace(/\/$/, '');
-
 async function apiRequest<T>(path: string, options: RequestInit = {}): Promise<T> {
   const token = await getAccessToken();
   if (!token) {

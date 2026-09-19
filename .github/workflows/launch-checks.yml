@@ -38,5 +38,8 @@ jobs:
       - name: Run API tests
         run: npm run test:api
 
+      - name: Type-check frontend
+        run: npm run typecheck
+
       - name: Build production frontend
         run: npm run build

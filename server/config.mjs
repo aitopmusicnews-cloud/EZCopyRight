@@ -12,7 +12,36 @@ function parseOrigins(value, environment) {
   return ['http://localhost:5173', 'http://127.0.0.1:5173'];
 }
 
+function requiredProductionValues(environment) {
+  return [
+    ['DATABASE_URL', environment.DATABASE_URL],
+    ['S3_BUCKET', environment.S3_BUCKET],
+    ['COGNITO_REGION', environment.COGNITO_REGION],
+    ['COGNITO_USER_POOL_ID', environment.COGNITO_USER_POOL_ID],
+    ['COGNITO_CLIENT_ID', environment.COGNITO_CLIENT_ID],
+    ['CORS_ALLOWED_ORIGINS', environment.CORS_ALLOWED_ORIGINS],
+    ['APP_BASE_URL', environment.APP_BASE_URL],
+    ['STRIPE_SECRET_KEY', environment.STRIPE_SECRET_KEY],
+    ['STRIPE_WEBHOOK_SECRET', environment.STRIPE_WEBHOOK_SECRET],
+    ['STRIPE_PRICE_ID', environment.STRIPE_PRICE_ID],
+  ];
+}
+
+export function validateEnvironment(environment = process.env) {
+  const nodeEnvironment = environment.NODE_ENV?.trim() || 'development';
+  if (nodeEnvironment !== 'production') return;
+
+  const missing = requiredProductionValues(environment)
+    .filter(([, value]) => !value?.trim())
+    .map(([name]) => name);
+
+  if (missing.length > 0) {
+    throw new Error(`Missing required production environment variables: ${missing.join(', ')}`);
+  }
+}
+
 export function loadConfig(environment = process.env) {
+  validateEnvironment(environment);
   const nodeEnvironment = environment.NODE_ENV?.trim() || 'development';
   const region = environment.COGNITO_REGION?.trim() || DEFAULT_COGNITO_REGION;
   const userPoolId = environment.COGNITO_USER_POOL_ID?.trim() || DEFAULT_COGNITO_USER_POOL_ID;
@@ -22,7 +51,7 @@ export function loadConfig(environment = process.env) {
 
   return {
     nodeEnvironment,
-    port: Number.parseInt(environment.PORT || '10000', 10),
+    port: Number.parseInt(environment.PORT || '8080', 10),
     databaseUrl,
     databaseSsl: environment.DATABASE_SSL === 'false'
       ? false
@@ -34,7 +63,7 @@ export function loadConfig(environment = process.env) {
     awsRegion: environment.AWS_REGION?.trim() || region,
     s3Bucket,
     maxUploadBytes: Number.parseInt(environment.MAX_UPLOAD_BYTES || '536870912', 10),
-    appBaseUrl: (environment.APP_BASE_URL || 'https://main.dfhj64edk9o6n.amplifyapp.com').trim().replace(/\/$/, ''),
+    appBaseUrl: (environment.APP_BASE_URL || 'http://localhost:5173').trim().replace(/\/$/, ''),
     stripeSecretKey: environment.STRIPE_SECRET_KEY?.trim() || '',
     stripeWebhookSecret: environment.STRIPE_WEBHOOK_SECRET?.trim() || '',
     stripePriceId: environment.STRIPE_PRICE_ID?.trim() || '',
