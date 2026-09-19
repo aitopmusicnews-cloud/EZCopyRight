@@ -7,6 +7,7 @@ import AuthScreen from './components/AuthScreen';
 import LegalPage from './components/LegalPage';
 import type { LegalPageId, MusicalWork, Page } from './types';
 import {
+  completeNewPassword,
   confirmSignUp,
   getCurrentUser,
   signIn,
@@ -41,6 +42,9 @@ export default function App() {
   const [appError, setAppError] = useState('');
   const [authTargetPage, setAuthTargetPage] = useState<'register' | 'dashboard'>('register');
   const [billing, setBilling] = useState<BillingStatus | null>(null);
+  const [postCheckout, setPostCheckout] = useState(
+    () => new URLSearchParams(window.location.search).get('billing') === 'success',
+  );
 
   const navigateLegal = (target: LegalPageId) => {
     const path = legalPathByPage[target];
@@ -86,6 +90,21 @@ export default function App() {
       unsubscribe();
     };
   }, []);
+
+  useEffect(() => {
+    if (!authReady || !postCheckout) return;
+
+    const cleanUrl = window.location.pathname;
+    window.history.replaceState({}, '', cleanUrl);
+
+    if (authUser) {
+      setPostCheckout(false);
+      return;
+    }
+
+    setAuthTargetPage('dashboard');
+    setPage('auth');
+  }, [authReady, authUser, postCheckout]);
 
   useEffect(() => {
     if (!authUser) {
@@ -192,11 +211,29 @@ export default function App() {
 
   const handleAuthSuccess = (user: AuthUser) => {
     setAuthUser(user);
+    setPostCheckout(false);
     setPage(authTargetPage);
   };
 
   const handleSignIn = async (email: string, password: string) => {
-    const user = await signIn(email, password);
+    const result = await signIn(email, password);
+    if (result.user) handleAuthSuccess(result.user);
+    return result.user
+      ? { newPasswordRequired: false as const }
+      : {
+          newPasswordRequired: true as const,
+          session: result.session,
+          username: result.username,
+        };
+  };
+
+  const handleCompleteNewPassword = async (
+    email: string,
+    username: string,
+    newPassword: string,
+    session: string,
+  ) => {
+    const user = await completeNewPassword(email, username, newPassword, session);
     handleAuthSuccess(user);
   };
 
@@ -286,6 +323,8 @@ export default function App() {
           targetLabel={authTargetPage === 'register' ? 'new registrations' : 'your dashboard'}
           onBack={() => setPage('landing')}
           onSignIn={handleSignIn}
+          onCompleteNewPassword={handleCompleteNewPassword}
+          postCheckout={postCheckout}
           onSignUp={handleSignUp}
           onConfirmSignUp={handleConfirmSignUp}
           onLegalNavigate={navigateLegal}
@@ -336,11 +375,6 @@ export default function App() {
           onLegalNavigate={navigateLegal}
           billing={billing}
           onSubscribe={() => {
-            if (!authUser) {
-              setAuthTargetPage('dashboard');
-              setPage('auth');
-              return;
-            }
             void startCheckout().catch((error) => setAppError(error instanceof Error ? error.message : 'Checkout could not be opened.'));
           }}
           onManageBilling={() => {

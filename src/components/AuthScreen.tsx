@@ -6,7 +6,12 @@ import LegalFooter from './LegalFooter';
 interface Props {
   targetLabel: string;
   onBack: () => void;
-  onSignIn: (email: string, password: string) => Promise<void>;
+  onSignIn: (email: string, password: string) => Promise<
+    | { newPasswordRequired: false }
+    | { newPasswordRequired: true; session: string; username: string }
+  >;
+  onCompleteNewPassword: (email: string, username: string, newPassword: string, session: string) => Promise<void>;
+  postCheckout?: boolean;
   onSignUp: (email: string, password: string) => Promise<{ confirmationRequired: boolean }>;
   onConfirmSignUp: (email: string, password: string, confirmationCode: string) => Promise<void>;
   onLegalNavigate: (page: LegalPageId) => void;
@@ -16,6 +21,8 @@ export default function AuthScreen({
   targetLabel,
   onBack,
   onSignIn,
+  onCompleteNewPassword,
+  postCheckout = false,
   onSignUp,
   onConfirmSignUp,
   onLegalNavigate,
@@ -28,6 +35,9 @@ export default function AuthScreen({
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
   const [acceptedPolicies, setAcceptedPolicies] = useState(false);
+  const [newPasswordSession, setNewPasswordSession] = useState('');
+  const [challengeUsername, setChallengeUsername] = useState('');
+  const [newPassword, setNewPassword] = useState('');
 
   const authModeLabel = 'AWS Cognito secure cloud';
 
@@ -37,6 +47,9 @@ export default function AuthScreen({
     setConfirmationCode('');
     setError('');
     setAcceptedPolicies(false);
+    setNewPasswordSession('');
+    setChallengeUsername('');
+    setNewPassword('');
   };
 
   const handleSubmit = async (event: React.FormEvent) => {
@@ -45,6 +58,11 @@ export default function AuthScreen({
     setError('');
 
     try {
+      if (newPasswordSession) {
+        await onCompleteNewPassword(email, challengeUsername || email, newPassword, newPasswordSession);
+        return;
+      }
+
       if (awaitingConfirmation) {
         await onConfirmSignUp(email, password, confirmationCode);
         return;
@@ -60,7 +78,12 @@ export default function AuthScreen({
           setAwaitingConfirmation(true);
         }
       } else {
-        await onSignIn(email, password);
+        const result = await onSignIn(email, password);
+        if (result.newPasswordRequired) {
+          setNewPasswordSession(result.session);
+          setChallengeUsername(result.username);
+          setPassword('');
+        }
       }
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Authentication failed.';
@@ -93,14 +116,15 @@ export default function AuthScreen({
           <div className="rounded-3xl border border-white/10 bg-white/5 p-8">
             <div className="inline-flex items-center gap-2 rounded-full border border-orange-500/20 bg-orange-500/10 px-3 py-1 text-sm text-orange-200 mb-6">
               <LockKeyhole className="w-4 h-4" />
-              Sign in required for {targetLabel.toLowerCase()}
+              {postCheckout ? 'Membership payment received' : `Sign in required for ${targetLabel.toLowerCase()}`}
             </div>
             <h1 className="text-4xl font-bold text-white mb-4" style={{ fontFamily: 'Playfair Display, serif' }}>
-              Secure your Hub records
+              {postCheckout ? 'Finish setting up your membership' : 'Secure your Hub records'}
             </h1>
             <p className="text-white/60 leading-relaxed mb-6">
-              Accounts tie your evidence records to a specific identity instead of leaving everything in a shared browser profile.
-              Sign-in is managed through a secure hosted account service so your credentials and session are protected.
+              {postCheckout
+                ? 'Your payment is complete. EZ Copyright creates or links your secure account using the email from Stripe. New members receive a Cognito email with a temporary password; use it here, then choose your permanent password.'
+                : 'Accounts tie your evidence records to a specific identity instead of leaving everything in a shared browser profile. Sign-in is managed through a secure hosted account service so your credentials and session are protected.'}
             </p>
             <div className="space-y-3 text-sm text-white/65">
               <div className="rounded-2xl border border-white/10 bg-black/20 p-4">Authenticated access reduces casual tampering and cross-user mixing.</div>
@@ -113,11 +137,19 @@ export default function AuthScreen({
             <div className="flex items-center justify-between mb-6">
               <div>
                 <h2 className="text-2xl font-bold text-white">
-                  {awaitingConfirmation ? 'Confirm your email' : isSignUp ? 'Create account' : 'Sign in'}
+                  {newPasswordSession
+                    ? 'Choose your password'
+                    : awaitingConfirmation
+                      ? 'Confirm your email'
+                      : isSignUp
+                        ? 'Create account'
+                        : postCheckout
+                          ? 'Access your membership'
+                          : 'Sign in'}
                 </h2>
                 <p className="text-sm text-white/45 mt-1">Mode: {authModeLabel}</p>
               </div>
-              {!awaitingConfirmation && (
+              {!awaitingConfirmation && !newPasswordSession && !postCheckout && (
                 <button
                   type="button"
                   onClick={switchMode}
@@ -136,7 +168,13 @@ export default function AuthScreen({
             )}
 
             <form onSubmit={handleSubmit} className="space-y-4">
-              {!awaitingConfirmation && (
+              {postCheckout && !awaitingConfirmation && !newPasswordSession && (
+                <div className="rounded-2xl border border-orange-500/20 bg-orange-500/10 p-4 text-sm text-white/75">
+                  New EZ Copyright member? Check the email address you used at Stripe for your temporary password, then sign in below. Already had an account? Use your normal password.
+                </div>
+              )}
+
+              {!awaitingConfirmation && !newPasswordSession && (
                 <>
                   <label className="block">
                     <span className="block text-sm text-white/70 mb-2">Email</span>
@@ -165,6 +203,30 @@ export default function AuthScreen({
                         className="w-full bg-transparent text-white placeholder:text-white/25 focus:outline-none"
                         minLength={8}
                         required
+                      />
+                    </div>
+                  </label>
+                </>
+              )}
+
+              {newPasswordSession && (
+                <>
+                  <div className="rounded-2xl border border-emerald-500/20 bg-emerald-500/10 p-4 text-sm text-white/75">
+                    Temporary password accepted. Choose the permanent password you want to use for EZ Copyright.
+                  </div>
+                  <label className="block">
+                    <span className="block text-sm text-white/70 mb-2">New permanent password</span>
+                    <div className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/5 px-4 py-3">
+                      <LockKeyhole className="w-4 h-4 text-white/35" />
+                      <input
+                        type="password"
+                        value={newPassword}
+                        onChange={(event) => setNewPassword(event.target.value)}
+                        placeholder="8+ chars, upper/lowercase, number, symbol"
+                        className="w-full bg-transparent text-white placeholder:text-white/25 focus:outline-none"
+                        minLength={8}
+                        required
+                        autoFocus
                       />
                     </div>
                   </label>
@@ -235,11 +297,15 @@ export default function AuthScreen({
               >
                 {submitting
                   ? 'Please wait...'
-                  : awaitingConfirmation
-                    ? 'Confirm and sign in'
-                    : isSignUp
-                      ? 'Create account'
-                      : 'Sign in'}
+                  : newPasswordSession
+                    ? 'Set password and continue'
+                    : awaitingConfirmation
+                      ? 'Confirm and sign in'
+                      : isSignUp
+                        ? 'Create account'
+                        : postCheckout
+                          ? 'Continue to my membership'
+                          : 'Sign in'}
               </button>
 
               {awaitingConfirmation && (
