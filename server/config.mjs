@@ -16,6 +16,9 @@ function requiredProductionValues(environment) {
   return [
     ['DATABASE_URL', environment.DATABASE_URL],
     ['S3_BUCKET', environment.S3_BUCKET],
+    ['COGNITO_REGION', environment.COGNITO_REGION],
+    ['COGNITO_USER_POOL_ID', environment.COGNITO_USER_POOL_ID],
+    ['COGNITO_CLIENT_ID', environment.COGNITO_CLIENT_ID],
     ['CORS_ALLOWED_ORIGINS', environment.CORS_ALLOWED_ORIGINS],
     ['APP_BASE_URL', environment.APP_BASE_URL],
     ['STRIPE_SECRET_KEY', environment.STRIPE_SECRET_KEY],
