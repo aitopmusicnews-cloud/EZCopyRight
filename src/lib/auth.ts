@@ -15,12 +15,23 @@ export interface SignUpResult {
   confirmationRequired: boolean;
 }
 
+export type SignInResult =
+  | { user: AuthUser; newPasswordRequired: false }
+  | { user: null; newPasswordRequired: true; session: string; username: string };
+
 interface CognitoSession {
   user: AuthUser;
   accessToken: string;
   idToken?: string;
   refreshToken?: string;
   expiresAt: number;
+}
+
+interface CognitoAuthenticationResult {
+  AccessToken?: string;
+  IdToken?: string;
+  RefreshToken?: string;
+  ExpiresIn?: number;
 }
 
 function readSession(): CognitoSession | null {
@@ -69,6 +80,23 @@ async function cognitoRequest<T>(target: string, body: Record<string, unknown>):
   return data as T;
 }
 
+function saveAuthentication(email: string, auth: CognitoAuthenticationResult): AuthUser {
+  if (!auth.AccessToken) throw new Error('Cognito did not return an access token.');
+  const claims = auth.IdToken ? decodeJwt(auth.IdToken) : decodeJwt(auth.AccessToken);
+  const user: AuthUser = {
+    id: String(claims.sub || email),
+    email: String(claims.email || email),
+  };
+  writeSession({
+    user,
+    accessToken: auth.AccessToken,
+    idToken: auth.IdToken,
+    refreshToken: auth.RefreshToken,
+    expiresAt: Date.now() + (auth.ExpiresIn || 3600) * 1000,
+  });
+  return user;
+}
+
 async function refreshSession(session: CognitoSession): Promise<CognitoSession | null> {
   if (!session.refreshToken) return null;
   try {
@@ -98,7 +126,6 @@ async function refreshSession(session: CognitoSession): Promise<CognitoSession |
 async function getValidSession(): Promise<CognitoSession | null> {
   const session = readSession();
   if (!session) return null;
-  // Refresh slightly before expiration so an API request never starts with a stale token.
   if (session.expiresAt > Date.now() + 60_000) return session;
   return refreshSession(session);
 }
@@ -123,33 +150,59 @@ export function subscribeToAuthChanges(callback: (user: AuthUser | null) => void
   return () => window.removeEventListener('storage', onStorage);
 }
 
-export async function signIn(email: string, password: string): Promise<AuthUser> {
+export async function signIn(email: string, password: string): Promise<SignInResult> {
   const data = await cognitoRequest<{
-    AuthenticationResult?: { AccessToken?: string; IdToken?: string; RefreshToken?: string; ExpiresIn?: number };
+    AuthenticationResult?: CognitoAuthenticationResult;
     ChallengeName?: string;
+    ChallengeParameters?: Record<string, string>;
+    Session?: string;
   }>('InitiateAuth', {
     AuthFlow: 'USER_PASSWORD_AUTH',
     ClientId: COGNITO_CLIENT_ID,
     AuthParameters: { USERNAME: email, PASSWORD: password },
   });
 
+  if (data.ChallengeName === 'NEW_PASSWORD_REQUIRED') {
+    if (!data.Session) throw new Error('Cognito did not return the password-change session.');
+    return {
+      user: null,
+      newPasswordRequired: true,
+      session: data.Session,
+      username: data.ChallengeParameters?.USER_ID_FOR_SRP
+        || data.ChallengeParameters?.USERNAME
+        || email,
+    };
+  }
   if (data.ChallengeName) throw new Error(`Additional sign-in step required: ${data.ChallengeName}`);
+
   const auth = data.AuthenticationResult;
   if (!auth?.AccessToken) throw new Error('Cognito did not return an access token.');
+  return { user: saveAuthentication(email, auth), newPasswordRequired: false };
+}
 
-  const claims = auth.IdToken ? decodeJwt(auth.IdToken) : decodeJwt(auth.AccessToken);
-  const user: AuthUser = {
-    id: String(claims.sub || email),
-    email: String(claims.email || email),
-  };
-  writeSession({
-    user,
-    accessToken: auth.AccessToken,
-    idToken: auth.IdToken,
-    refreshToken: auth.RefreshToken,
-    expiresAt: Date.now() + (auth.ExpiresIn || 3600) * 1000,
+export async function completeNewPassword(
+  email: string,
+  username: string,
+  newPassword: string,
+  session: string,
+): Promise<AuthUser> {
+  const data = await cognitoRequest<{
+    AuthenticationResult?: CognitoAuthenticationResult;
+    ChallengeName?: string;
+  }>('RespondToAuthChallenge', {
+    ChallengeName: 'NEW_PASSWORD_REQUIRED',
+    ClientId: COGNITO_CLIENT_ID,
+    Session: session,
+    ChallengeResponses: {
+      USERNAME: username,
+      NEW_PASSWORD: newPassword,
+    },
   });
-  return user;
+  if (data.ChallengeName) throw new Error(`Additional sign-in step required: ${data.ChallengeName}`);
+  if (!data.AuthenticationResult?.AccessToken) {
+    throw new Error('Cognito did not complete the password update.');
+  }
+  return saveAuthentication(email, data.AuthenticationResult);
 }
 
 export async function signUp(email: string, password: string): Promise<SignUpResult> {
@@ -168,7 +221,9 @@ export async function confirmSignUp(email: string, password: string, confirmatio
     Username: email,
     ConfirmationCode: confirmationCode,
   });
-  return signIn(email, password);
+  const result = await signIn(email, password);
+  if (!result.user) throw new Error('Your account needs an additional password setup step.');
+  return result.user;
 }
 
 export async function signOut(): Promise<void> {
