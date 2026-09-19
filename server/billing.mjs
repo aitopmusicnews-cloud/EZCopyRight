@@ -11,7 +11,7 @@ function period(subscription) {
   };
 }
 
-export function createStripeBilling(config) {
+export function createStripeBilling(config, { accounts } = {}) {
   const stripe = config.stripeSecretKey
     ? new Stripe(config.stripeSecretKey, { apiVersion: '2026-06-24.dahlia' })
     : null;
@@ -46,10 +46,41 @@ export function createStripeBilling(config) {
   }
 
   async function saveSubscription(database, subscription, fallbackUserId = null, fallbackEmail = '') {
+    const stripeApi = requireStripe();
     const customerId = typeof subscription.customer === 'string' ? subscription.customer : subscription.customer?.id;
-    const customer = customerId ? await requireStripe().customers.retrieve(customerId) : null;
-    const userId = subscription.metadata?.cognito_user_id || customer?.metadata?.cognito_user_id || fallbackUserId;
-    if (!userId || !customerId) return;
+    const customer = customerId ? await stripeApi.customers.retrieve(customerId) : null;
+    const email = (!customer?.deleted && customer?.email) || fallbackEmail || '';
+
+    let userId = subscription.metadata?.cognito_user_id
+      || (!customer?.deleted && customer?.metadata?.cognito_user_id)
+      || fallbackUserId;
+
+    if (!userId && email && accounts?.ensureUserByEmail) {
+      const account = await accounts.ensureUserByEmail(email);
+      userId = account.userId;
+
+      if (!customer?.deleted) {
+        await stripeApi.customers.update(customerId, {
+          metadata: {
+            ...(customer?.metadata || {}),
+            cognito_user_id: userId,
+            application: 'ez_copyright',
+          },
+        });
+      }
+      await stripeApi.subscriptions.update(subscription.id, {
+        metadata: {
+          ...(subscription.metadata || {}),
+          cognito_user_id: userId,
+          application: 'ez_copyright',
+        },
+      });
+    }
+
+    if (!userId || !customerId) {
+      throw new Error('Stripe subscription could not be linked to an EZ Copyright account.');
+    }
+
     const { start, end } = period(subscription);
     await database.query(
       `INSERT INTO billing_customers (
@@ -62,7 +93,7 @@ export function createStripeBilling(config) {
         subscription_status=EXCLUDED.subscription_status, current_period_start=EXCLUDED.current_period_start,
         current_period_end=EXCLUDED.current_period_end, cancel_at_period_end=EXCLUDED.cancel_at_period_end,
         updated_at=NOW()`,
-      [userId, customer?.email || fallbackEmail || '', customerId, subscription.id,
+      [userId, email, customerId, subscription.id,
         subscription.items?.data?.[0]?.price?.id || null, subscription.status,
         start ? new Date(start * 1000) : null, end ? new Date(end * 1000) : null,
         Boolean(subscription.cancel_at_period_end)],
@@ -71,25 +102,33 @@ export function createStripeBilling(config) {
 
   return {
     configured: Boolean(stripe && config.stripePriceId),
-    async createCheckout({ database, userId, email }) {
+    async createCheckout({ database, userId = null, email = null }) {
       const priceId = await getPriceId();
-      const existing = await database.query('SELECT * FROM billing_customers WHERE user_id=$1', [userId]);
+      const existing = userId
+        ? await database.query('SELECT * FROM billing_customers WHERE user_id=$1', [userId])
+        : { rows: [] };
+      const metadata = { application: 'ez_copyright' };
+      if (userId) metadata.cognito_user_id = userId;
+
       const params = {
         mode: 'subscription',
         managed_payments: { enabled: false },
         line_items: [{ price: priceId, quantity: 1 }],
-        client_reference_id: userId,
         success_url: `${config.appBaseUrl}/?billing=success`,
         cancel_url: `${config.appBaseUrl}/?billing=cancelled`,
         integration_identifier: `ezcopyright_web_${randomBytes(6).toString('base64url').slice(0, 8).toLowerCase()}`,
-        subscription_data: { metadata: { cognito_user_id: userId, application: 'ez_copyright' } },
-        metadata: { cognito_user_id: userId, application: 'ez_copyright' },
+        subscription_data: { metadata: { ...metadata } },
+        metadata: { ...metadata },
       };
+      if (userId) params.client_reference_id = userId;
       if (existing.rows[0]?.stripe_customer_id) params.customer = existing.rows[0].stripe_customer_id;
-      else if (email) {
-        params.customer_email = email;
-      }
-      return requireStripe().checkout.sessions.create(params, { idempotencyKey: `checkout-${userId}-${Date.now()}` });
+      else if (email) params.customer_email = email;
+
+      const idempotencyIdentity = userId || randomBytes(12).toString('hex');
+      return requireStripe().checkout.sessions.create(
+        params,
+        { idempotencyKey: `checkout-${idempotencyIdentity}-${Date.now()}` },
+      );
     },
     async createPortal({ database, userId }) {
       const result = await database.query('SELECT stripe_customer_id FROM billing_customers WHERE user_id=$1', [userId]);
@@ -109,15 +148,21 @@ export function createStripeBilling(config) {
         [event.id, event.type],
       );
       if (!claimed.rows[0]) return;
-      const object = event.data.object;
-      if (event.type === 'checkout.session.completed' && object.subscription) {
-        const subscription = await requireStripe().subscriptions.retrieve(object.subscription);
-        await saveSubscription(database, subscription, object.client_reference_id, object.customer_details?.email || '');
-      } else if (event.type.startsWith('customer.subscription.')) {
-        await saveSubscription(database, object);
-      } else if (event.type === 'invoice.paid' || event.type === 'invoice.payment_failed') {
-        const subscriptionId = typeof object.subscription === 'string' ? object.subscription : object.subscription?.id;
-        if (subscriptionId) await saveSubscription(database, await requireStripe().subscriptions.retrieve(subscriptionId));
+
+      try {
+        const object = event.data.object;
+        if (event.type === 'checkout.session.completed' && object.subscription) {
+          const subscription = await requireStripe().subscriptions.retrieve(object.subscription);
+          await saveSubscription(database, subscription, object.client_reference_id, object.customer_details?.email || '');
+        } else if (event.type.startsWith('customer.subscription.')) {
+          await saveSubscription(database, object);
+        } else if (event.type === 'invoice.paid' || event.type === 'invoice.payment_failed') {
+          const subscriptionId = typeof object.subscription === 'string' ? object.subscription : object.subscription?.id;
+          if (subscriptionId) await saveSubscription(database, await requireStripe().subscriptions.retrieve(subscriptionId));
+        }
+      } catch (error) {
+        await database.query('DELETE FROM stripe_events WHERE id=$1', [event.id]);
+        throw error;
       }
     },
     async status(database, userId) {
