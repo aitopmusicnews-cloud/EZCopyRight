@@ -5,6 +5,8 @@ import LegalFooter from './LegalFooter';
 
 interface Props {
   onNavigate: (page: 'register' | 'dashboard') => void;
+  onSubscribe: () => void;
+  hasActiveMembership: boolean;
   workCount: number;
   isAuthenticated: boolean;
   userEmail: string | null;
@@ -16,6 +18,8 @@ interface Props {
 
 export default function LandingHero({
   onNavigate,
+  onSubscribe,
+  hasActiveMembership,
   workCount,
   isAuthenticated,
   userEmail,
@@ -131,11 +135,11 @@ export default function LandingHero({
 
             <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
               <button
-                onClick={() => onNavigate('register')}
+                onClick={() => hasActiveMembership ? onNavigate('register') : onSubscribe()}
                 className="group flex items-center gap-2 bg-gradient-to-r from-orange-600 to-amber-600 hover:from-orange-500 hover:to-amber-500 text-white px-8 py-4 rounded-2xl text-lg font-semibold shadow-2xl shadow-orange-900/50 transition-all duration-300 hover:scale-105 hover:shadow-orange-800/60 cursor-pointer"
               >
                 <Music className="w-5 h-5" />
-                Create Evidence Record
+                {hasActiveMembership ? 'Create Evidence Record' : 'Start Membership — $25/month'}
                 <ChevronRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
               </button>
 
@@ -150,6 +154,12 @@ export default function LandingHero({
             </div>
 
             {/* Stats */}
+            {!hasActiveMembership && (
+              <p className="mt-4 text-sm text-white/45">
+                Includes 5 private evidence records each month. Account setup happens after checkout.
+              </p>
+            )}
+
             <div className="mt-20 grid grid-cols-3 gap-8 max-w-3xl mx-auto">
               {[
                 { value: 'SHA-256', label: 'File Hashing' },
@@ -249,11 +259,11 @@ export default function LandingHero({
 
           <div className="mt-16 text-center">
             <button
-              onClick={() => onNavigate('register')}
+              onClick={() => hasActiveMembership ? onNavigate('register') : onSubscribe()}
               className="group inline-flex items-center gap-2 bg-gradient-to-r from-orange-600 to-amber-600 hover:from-orange-500 hover:to-amber-500 text-white px-10 py-4 rounded-2xl text-lg font-semibold shadow-2xl shadow-orange-900/50 transition-all duration-300 hover:scale-105 cursor-pointer"
             >
               <Zap className="w-5 h-5" />
-              Create an Evidence Record
+              {hasActiveMembership ? 'Create an Evidence Record' : 'Start Membership — $25/month'}
               <ChevronRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
             </button>
           </div>

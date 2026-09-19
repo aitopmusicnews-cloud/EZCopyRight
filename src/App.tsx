@@ -300,6 +300,10 @@ export default function App() {
           {errorBanner}
           <LandingHero
             onNavigate={navigateProtected}
+            onSubscribe={() => {
+              void startCheckout().catch((error) => setAppError(error instanceof Error ? error.message : 'Checkout could not be opened.'));
+            }}
+            hasActiveMembership={Boolean(billing?.active)}
             workCount={works.length}
             isAuthenticated={Boolean(authUser)}
             userEmail={authUser?.email ?? null}
