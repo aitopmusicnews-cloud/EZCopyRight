@@ -21,31 +21,12 @@ export function createStripeBilling(config, { accounts } = {}) {
     return stripe;
   }
 
-  let resolvedPriceId = null;
+  let resolvedPriceId = 'price_1UHO2UIgHJywqbkk3hepc7hg';
   async function getPriceId() {
-    if (resolvedPriceId) return resolvedPriceId;
-    if (config.stripePriceId.startsWith('price_')) {
-      resolvedPriceId = config.stripePriceId;
-      return resolvedPriceId;
-    }
-    if (config.stripePriceId.startsWith('prod_')) {
-      let product;
-      try {
-        product = await requireStripe().products.retrieve(config.stripePriceId);
-      } catch (error) {
-        if (error?.code !== 'resource_missing') throw error;
-        const products = await requireStripe().products.list({ active: true, limit: 100 });
-        product = products.data.find((candidate) => candidate.name === 'EZ Copyright Membership');
-      }
-      resolvedPriceId = typeof product?.default_price === 'string'
-        ? product.default_price
-        : product?.default_price?.id;
-      if (resolvedPriceId) return resolvedPriceId;
-    }
-    throw new Error('The configured Stripe product does not have a default recurring price.');
-  }
+    return resolvedPriceId;
+  }    
 
-  async function saveSubscription(database, subscription, fallbackUserId = null, fallbackEmail = '', checkoutSession = null) {
+    async function saveSubscription(database, subscription, fallbackUserId = null, fallbackEmail = '', checkoutSession = null) {
     const stripeApi = requireStripe();
     const customerId = typeof subscription.customer === 'string' ? subscription.customer : subscription.customer?.id;
     const customer = customerId ? await stripeApi.customers.retrieve(customerId) : null;
@@ -157,7 +138,7 @@ export function createStripeBilling(config, { accounts } = {}) {
         mode: 'subscription',
         managed_payments: { enabled: false },
         line_items: [{ price: priceId, quantity: 1 }],
-        allow_promotion_codes: false,
+        allow_promotion_codes: true,
         name_collection: {
           individual: { enabled: true, optional: false },
           business: { enabled: true, optional: true },
