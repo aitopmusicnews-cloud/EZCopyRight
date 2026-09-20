@@ -157,7 +157,7 @@ export function createStripeBilling(config, { accounts } = {}) {
         mode: 'subscription',
         managed_payments: { enabled: false },
         line_items: [{ price: priceId, quantity: 1 }],
-        allow_promotion_codes: true,
+        allow_promotion_codes: false,
         name_collection: {
           individual: { enabled: true, optional: false },
           business: { enabled: true, optional: true },
