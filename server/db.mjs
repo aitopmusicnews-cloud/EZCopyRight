@@ -63,8 +63,17 @@ CREATE TABLE IF NOT EXISTS billing_customers (
   current_period_start TIMESTAMPTZ,
   current_period_end TIMESTAMPTZ,
   cancel_at_period_end BOOLEAN NOT NULL DEFAULT FALSE,
+  full_name TEXT,
+  business_name TEXT,
+  terms_accepted_at TIMESTAMPTZ,
+  policy_version VARCHAR(32),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+
+ALTER TABLE billing_customers ADD COLUMN IF NOT EXISTS full_name TEXT;
+ALTER TABLE billing_customers ADD COLUMN IF NOT EXISTS business_name TEXT;
+ALTER TABLE billing_customers ADD COLUMN IF NOT EXISTS terms_accepted_at TIMESTAMPTZ;
+ALTER TABLE billing_customers ADD COLUMN IF NOT EXISTS policy_version VARCHAR(32);
 
 CREATE TABLE IF NOT EXISTS stripe_events (
   id TEXT PRIMARY KEY,
