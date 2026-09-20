@@ -8,7 +8,9 @@ import LegalPage from './components/LegalPage';
 import type { LegalPageId, MusicalWork, Page } from './types';
 import {
   completeNewPassword,
+  confirmForgotPassword,
   confirmSignUp,
+  forgotPassword,
   getCurrentUser,
   signIn,
   signOut,
@@ -237,6 +239,17 @@ export default function App() {
     handleAuthSuccess(user);
   };
 
+  const handleForgotPassword = async (email: string) => {
+    await forgotPassword(email);
+  };
+
+  const handleResetPassword = async (email: string, confirmationCode: string, newPassword: string) => {
+    await confirmForgotPassword(email, confirmationCode, newPassword);
+    const result = await signIn(email, newPassword);
+    if (!result.user) throw new Error('Password reset completed, but your account still requires another setup step.');
+    handleAuthSuccess(result.user);
+  };
+
   const handleSignUp = async (email: string, password: string) => {
     const result = await signUp(email, password);
     if (result.user) {
@@ -328,6 +341,8 @@ export default function App() {
           onBack={() => setPage('landing')}
           onSignIn={handleSignIn}
           onCompleteNewPassword={handleCompleteNewPassword}
+          onForgotPassword={handleForgotPassword}
+          onResetPassword={handleResetPassword}
           postCheckout={postCheckout}
           onSignUp={handleSignUp}
           onConfirmSignUp={handleConfirmSignUp}

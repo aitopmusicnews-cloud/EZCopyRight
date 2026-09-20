@@ -11,6 +11,8 @@ interface Props {
     | { newPasswordRequired: true; session: string; username: string }
   >;
   onCompleteNewPassword: (email: string, username: string, newPassword: string, session: string) => Promise<void>;
+  onForgotPassword: (email: string) => Promise<void>;
+  onResetPassword: (email: string, confirmationCode: string, newPassword: string) => Promise<void>;
   postCheckout?: boolean;
   onSignUp: (email: string, password: string) => Promise<{ confirmationRequired: boolean }>;
   onConfirmSignUp: (email: string, password: string, confirmationCode: string) => Promise<void>;
@@ -22,6 +24,8 @@ export default function AuthScreen({
   onBack,
   onSignIn,
   onCompleteNewPassword,
+  onForgotPassword,
+  onResetPassword,
   postCheckout = false,
   onSignUp,
   onConfirmSignUp,
@@ -38,6 +42,9 @@ export default function AuthScreen({
   const [newPasswordSession, setNewPasswordSession] = useState('');
   const [challengeUsername, setChallengeUsername] = useState('');
   const [newPassword, setNewPassword] = useState('');
+  const [resetMode, setResetMode] = useState(false);
+  const [resetCode, setResetCode] = useState('');
+  const [resetPassword, setResetPassword] = useState('');
 
   const authModeLabel = 'AWS Cognito secure cloud';
 
@@ -50,6 +57,28 @@ export default function AuthScreen({
     setNewPasswordSession('');
     setChallengeUsername('');
     setNewPassword('');
+    setResetMode(false);
+    setResetCode('');
+    setResetPassword('');
+  };
+
+  const startPasswordReset = async () => {
+    if (!email.trim()) {
+      setError('Enter your email address first.');
+      return;
+    }
+
+    setSubmitting(true);
+    setError('');
+    try {
+      await onForgotPassword(email.trim());
+      setResetMode(true);
+      setPassword('');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not send a password reset code.');
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const handleSubmit = async (event: React.FormEvent) => {
@@ -58,6 +87,11 @@ export default function AuthScreen({
     setError('');
 
     try {
+      if (resetMode) {
+        await onResetPassword(email, resetCode, resetPassword);
+        return;
+      }
+
       if (newPasswordSession) {
         await onCompleteNewPassword(email, challengeUsername || email, newPassword, newPasswordSession);
         return;
@@ -137,9 +171,11 @@ export default function AuthScreen({
             <div className="flex items-center justify-between mb-6">
               <div>
                 <h2 className="text-2xl font-bold text-white">
-                  {newPasswordSession
-                    ? 'Choose your password'
-                    : awaitingConfirmation
+                  {resetMode
+                    ? 'Reset your password'
+                    : newPasswordSession
+                      ? 'Choose your password'
+                      : awaitingConfirmation
                       ? 'Confirm your email'
                       : isSignUp
                         ? 'Create account'
@@ -149,7 +185,7 @@ export default function AuthScreen({
                 </h2>
                 <p className="text-sm text-white/45 mt-1">Mode: {authModeLabel}</p>
               </div>
-              {!awaitingConfirmation && !newPasswordSession && !postCheckout && (
+              {!awaitingConfirmation && !newPasswordSession && !resetMode && !postCheckout && (
                 <button
                   type="button"
                   onClick={switchMode}
@@ -168,13 +204,13 @@ export default function AuthScreen({
             )}
 
             <form onSubmit={handleSubmit} className="space-y-4">
-              {postCheckout && !awaitingConfirmation && !newPasswordSession && (
+              {postCheckout && !awaitingConfirmation && !newPasswordSession && !resetMode && (
                 <div className="rounded-2xl border border-orange-500/20 bg-orange-500/10 p-4 text-sm text-white/75">
-                  New EZ Copyright member? Check the email address you used at Stripe for your temporary password, then sign in below. Already had an account? Use your normal password.
+                  Your trial is linked to the email you used at Stripe. If that email already had an EZ Copyright account, no new invitation is sent. Sign in with your existing password or use Forgot password below.
                 </div>
               )}
 
-              {!awaitingConfirmation && !newPasswordSession && (
+              {!awaitingConfirmation && !newPasswordSession && !resetMode && (
                 <>
                   <label className="block">
                     <span className="block text-sm text-white/70 mb-2">Email</span>
@@ -206,6 +242,72 @@ export default function AuthScreen({
                       />
                     </div>
                   </label>
+
+                  {!isSignUp && (
+                    <button
+                      type="button"
+                      onClick={() => { void startPasswordReset(); }}
+                      disabled={submitting}
+                      className="w-full text-right text-sm text-orange-300 hover:text-orange-200 disabled:opacity-60 cursor-pointer"
+                    >
+                      Forgot password?
+                    </button>
+                  )}
+                </>
+              )}
+
+              {resetMode && (
+                <>
+                  <div className="rounded-2xl border border-emerald-500/20 bg-emerald-500/10 p-4 text-sm text-white/75">
+                    Cognito sent a reset code to your verified email. Enter the code and choose a new password.
+                  </div>
+
+                  <label className="block">
+                    <span className="block text-sm text-white/70 mb-2">Reset code</span>
+                    <div className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/5 px-4 py-3">
+                      <MailCheck className="w-4 h-4 text-white/35" />
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        autoComplete="one-time-code"
+                        value={resetCode}
+                        onChange={(event) => setResetCode(event.target.value)}
+                        placeholder="Enter the code from your email"
+                        className="w-full bg-transparent text-white placeholder:text-white/25 focus:outline-none tracking-widest"
+                        required
+                        autoFocus
+                      />
+                    </div>
+                  </label>
+
+                  <label className="block">
+                    <span className="block text-sm text-white/70 mb-2">New password</span>
+                    <div className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/5 px-4 py-3">
+                      <LockKeyhole className="w-4 h-4 text-white/35" />
+                      <input
+                        type="password"
+                        value={resetPassword}
+                        onChange={(event) => setResetPassword(event.target.value)}
+                        placeholder="8+ chars, upper/lowercase, number, symbol"
+                        className="w-full bg-transparent text-white placeholder:text-white/25 focus:outline-none"
+                        minLength={8}
+                        required
+                      />
+                    </div>
+                  </label>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setResetMode(false);
+                      setResetCode('');
+                      setResetPassword('');
+                      setError('');
+                    }}
+                    className="w-full text-sm text-white/50 hover:text-white/75 cursor-pointer"
+                  >
+                    Back to sign in
+                  </button>
                 </>
               )}
 
@@ -297,7 +399,9 @@ export default function AuthScreen({
               >
                 {submitting
                   ? 'Please wait...'
-                  : newPasswordSession
+                  : resetMode
+                    ? 'Reset password and sign in'
+                    : newPasswordSession
                     ? 'Set password and continue'
                     : awaitingConfirmation
                       ? 'Confirm and sign in'
