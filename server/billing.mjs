@@ -114,17 +114,11 @@ export function createStripeBilling(config, { accounts } = {}) {
         mode: 'subscription',
         managed_payments: { enabled: false },
         line_items: [{ price: priceId, quantity: 1 }],
-        payment_method_collection: 'if_required',
+        allow_promotion_codes: true,
         success_url: `${config.appBaseUrl}/?billing=success`,
         cancel_url: `${config.appBaseUrl}/?billing=cancelled`,
         integration_identifier: `ezcopyright_web_${randomBytes(6).toString('base64url').slice(0, 8).toLowerCase()}`,
-        subscription_data: {
-          trial_period_days: 7,
-          trial_settings: {
-            end_behavior: { missing_payment_method: 'cancel' },
-          },
-          metadata: { ...metadata },
-        },
+        subscription_data: { metadata: { ...metadata } },
         metadata: { ...metadata },
       };
       if (userId) params.client_reference_id = userId;
