@@ -72,3 +72,7 @@ Authenticated routes cover user identity, billing, private uploads, registered w
 7. The application generates a downloadable certificate.
 
 EZ Copyright provides evidence and recordkeeping; it is not a substitute for registration with a government copyright office or advice from a qualified attorney.
+
+## Standalone operations agent
+
+The separate [EZCopyRight Operations Agent](operations-agent/README.md) provides an owner dashboard, recurring investigations, Stripe administration proposals, AWS checks, and reviewable draft code changes. It deploys independently on ECS Fargate and requires its own credentials and owner access configuration. It is not enabled by deploying the existing frontend/API.

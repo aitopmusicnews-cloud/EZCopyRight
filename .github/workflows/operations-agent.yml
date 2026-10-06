@@ -1,0 +1,31 @@
+name: Operations agent checks
+on:
+  pull_request:
+    paths: ['operations-agent/**', '.github/workflows/operations-agent.yml']
+  push:
+    branches: [main]
+    paths: ['operations-agent/**', '.github/workflows/operations-agent.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: operations-agent
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: operations-agent/package-lock.json
+      - run: npm ci
+      - run: npm test
+      - name: Audit production dependencies
+        run: npm audit --omit=dev --audit-level=high
+      - name: Report development dependency advisories
+        continue-on-error: true
+        run: npm audit --audit-level=high

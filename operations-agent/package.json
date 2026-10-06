@@ -1,0 +1,39 @@
+{
+  "name": "ezcopyright-operations-agent",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "start": "node src/index.mjs",
+    "migrate": "node src/migrate.mjs",
+    "test": "node --test test/*.test.mjs",
+    "synth": "cdk synth --strict",
+    "diff": "cdk diff",
+    "deploy": "cdk deploy"
+  },
+  "dependencies": {
+    "@aws-sdk/client-amplify": "latest",
+    "@aws-sdk/client-apprunner": "latest",
+    "@aws-sdk/client-cloudwatch": "latest",
+    "@aws-sdk/client-cognito-identity-provider": "latest",
+    "@aws-sdk/client-rds": "latest",
+    "@aws-sdk/client-s3": "latest",
+    "express": "^5.1.0",
+    "express-rate-limit": "^8.1.0",
+    "helmet": "^8.1.0",
+    "jose": "^6.1.0",
+    "openai": "latest",
+    "pg": "^8.16.3",
+    "stripe": "^22.6.0",
+    "zod": "^4.1.12"
+  },
+  "devDependencies": {
+    "@electric-sql/pglite": "^0.5.8",
+    "aws-cdk": "latest",
+    "aws-cdk-lib": "latest",
+    "constructs": "^10.0.0"
+  }
+}
