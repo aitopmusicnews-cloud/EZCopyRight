@@ -7,7 +7,7 @@ on:
     paths: ['operations-agent/**', '.github/workflows/operations-agent.yml']
   workflow_dispatch:
 permissions:
-  contents: read
+  contents: write
 jobs:
   verify:
     runs-on: ubuntu-latest
@@ -24,12 +24,16 @@ jobs:
           cache-dependency-path: operations-agent/package-lock.json
       - name: Regenerate lockfile for dependency update
         run: npm install --package-lock-only --ignore-scripts
-      - name: Upload regenerated lockfile
-        uses: actions/upload-artifact@v4
-        with:
-          name: operations-agent-lockfile
-          path: operations-agent/package-lock.json
-          if-no-files-found: error
+      - name: Commit regenerated lockfile
+        working-directory: .
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add operations-agent/package-lock.json
+          if ! git diff --cached --quiet; then
+            git commit -m "Update operations agent dependency lockfile"
+            git push origin HEAD:codex/ezcopyright-agent-rds-iam
+          fi
       - run: npm ci
       - run: npm test
       - name: Audit production dependencies
