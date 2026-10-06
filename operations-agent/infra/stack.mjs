@@ -26,7 +26,7 @@ export class AgentStack extends Stack {
   const env={NODE_ENV:'production',PORT:'8080',AWS_REGION:c.region,AGENT_ORIGIN:origin,APP_ORIGIN:c.appOrigin,API_ORIGIN:c.apiOrigin,
    COGNITO_USER_POOL_ID:c.cognitoPoolId,COGNITO_CLIENT_ID:client.userPoolClientId,COGNITO_DOMAIN:c.cognitoDomain,OWNER_SUBS:c.ownerSubs,OPENAI_MODEL:c.openaiModel,
    STRIPE_LIVE:String(c.stripeLive),STRIPE_PRICE_ID:c.stripePriceId,STRIPE_PRODUCT_ID:c.stripeProductId,
-   APP_RUNNER_ARN:c.appRunnerArn,AMPLIFY_APP_ID:c.amplifyAppId,AMPLIFY_BRANCH:c.amplifyBranch,RDS_INSTANCE_ID:c.rdsInstanceId,S3_BUCKET:c.s3Bucket,ALARM_NAMES:c.alarmNames.join(','),
+   APP_RUNNER_ARN:c.appRunnerArn,AMPLIFY_APP_ID:c.amplifyAppId,AMPLIFY_BRANCH:c.amplifyBranch,RDS_INSTANCE_ID:c.rdsInstanceId,\n   DATABASE_IAM_AUTH:'true',DATABASE_HOST:c.databaseHost,DATABASE_PORT:String(c.databasePort || 5432),DATABASE_NAME:c.databaseName,DATABASE_RUNTIME_USER:c.databaseRuntimeUser,APP_DATABASE_USER:c.appDatabaseUser,\n   S3_BUCKET:c.s3Bucket,ALARM_NAMES:c.alarmNames.join(','),
    ENABLE_WRITES:String(c.enableWrites),MONITOR_MINUTES:'15',MAX_RUNS_PER_DAY:'120'};
   const container=task.addContainer('Agent',{image:ecs.ContainerImage.fromAsset(fileURLToPath(new URL('..',import.meta.url)),{exclude:['node_modules','cdk.out','infra','test','.env','.env.*']}),environment:env,secrets:{AGENT_SECRETS_JSON:ecs.Secret.fromSecretsManager(secret)},logging:ecs.LogDrivers.awsLogs({streamPrefix:'agent',logGroup}),stopTimeout:Duration.seconds(30),readonlyRootFilesystem:true});
   container.addPortMappings({containerPort:8080});
@@ -39,7 +39,7 @@ export class AgentStack extends Stack {
   policy(['apprunner:DescribeService',...(c.enableWrites?['apprunner:StartDeployment']:[])],[c.appRunnerArn]);
   const amplifyArn=`arn:aws:amplify:${c.region}:${c.account}:apps/${c.amplifyAppId}/branches/${c.amplifyBranch}/jobs/*`;
   policy(['amplify:ListJobs',...(c.enableWrites?['amplify:StartJob']:[])],[amplifyArn,`arn:aws:amplify:${c.region}:${c.account}:apps/${c.amplifyAppId}/branches/${c.amplifyBranch}`]);
-  policy(['rds:DescribeDBInstances'],[`arn:aws:rds:${c.region}:${c.account}:db:${c.rdsInstanceId}`]);
+  policy(['rds:DescribeDBInstances'],[`arn:aws:rds:${c.region}:${c.account}:db:${c.rdsInstanceId}`]);\n  policy(['rds-db:connect'],[\n   `arn:aws:rds-db:${c.region}:${c.account}:dbuser:${c.rdsResourceId}/${c.databaseRuntimeUser}`,\n   `arn:aws:rds-db:${c.region}:${c.account}:dbuser:${c.rdsResourceId}/${c.appDatabaseUser}`\n  ]);
   policy(['cognito-idp:DescribeUserPool',...(c.enableWrites?['cognito-idp:AdminGetUser','cognito-idp:AdminDisableUser','cognito-idp:AdminEnableUser']:[])],[pool.userPoolArn]);
   policy(['s3:GetBucketVersioning','s3:GetBucketPublicAccessBlock'],[`arn:aws:s3:::${c.s3Bucket}`]);
   if(c.alarmNames.length)policy(['cloudwatch:DescribeAlarms'],c.alarmNames.map(name=>`arn:aws:cloudwatch:${c.region}:${c.account}:alarm:${name}`));
