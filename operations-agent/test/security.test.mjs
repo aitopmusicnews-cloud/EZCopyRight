@@ -5,7 +5,7 @@ import { validateAction,safePath,safeError } from '../src/policy.mjs';
 import { ownerVerifier,createServer } from '../src/server.mjs';
 import { dispatchTool,runAgent } from '../src/agent.mjs';
 import { Connectors } from '../src/connectors.mjs';
-import { loadConfig,poolOptions } from '../src/config.mjs';
+import { loadConfig,poolOptions } from '../src/config.mjs';\nimport { databasePoolOptions } from '../src/database.mjs';
 const owner='owner-sub';
 const config={AWS_REGION:'us-west-2',COGNITO_USER_POOL_ID:'us-west-2_pool',COGNITO_CLIENT_ID:'agent-client',COGNITO_DOMAIN:'https://auth.example.com',OWNER_SUBS:[owner],AGENT_ORIGIN:'https://agent.example.com',ENABLE_WRITES:true,MAX_REFUND_CENTS:2500,STRIPE_LIVE:false,STRIPE_READ_KEY:'rk_test_dummy',STRIPE_WRITE_KEY:'rk_test_dummy',STRIPE_PRICE_ID:'price_app',STRIPE_PRODUCT_ID:'prod_app',OPENAI_MODEL:'test-model'};
 test('refunds enforce positive integer cents, cap, exact payload and IDs',()=>{
@@ -27,6 +27,13 @@ test('SDK errors cannot disclose tokens or request data',()=>{
 test('database URL ssl options cannot disable verified TLS',()=>{
  const options=poolOptions({DATABASE_SSL:'true'},'postgres://u:p@host/db?sslmode=no-verify');
  assert.equal(options.ssl.rejectUnauthorized,true);assert.ok(!options.connectionString.includes('sslmode'));
+});
+test('IAM database auth uses dedicated DB roles and dynamic token callbacks',async()=>{
+ const base={DATABASE_IAM_AUTH:true,DATABASE_HOST:'db.example.com',DATABASE_PORT:5432,DATABASE_NAME:'ezcopyright',DATABASE_RUNTIME_USER:'ez_agent_runtime',APP_DATABASE_USER:'ez_agent_app_reader',DATABASE_SSL:'true',AWS_REGION:'us-west-2'};
+ const fake=()=>({getAuthToken:async()=> 'token'});
+ const runtime=databasePoolOptions(base,'runtime',fake),reader=databasePoolOptions(base,'reader',fake);
+ assert.equal(runtime.user,'ez_agent_runtime');assert.equal(reader.user,'ez_agent_app_reader');
+ assert.equal(await runtime.password(),'token');assert.equal(runtime.ssl.rejectUnauthorized,true);
 });
 test('owner authentication verifies signature, audience, issuer, token use and sub',async()=>{
  const {privateKey,publicKey}=await generateKeyPair('RS256');const jwk=await exportJWK(publicKey);jwk.kid='test';
