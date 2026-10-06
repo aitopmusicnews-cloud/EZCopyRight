@@ -1,10 +1,15 @@
 import { createHash, randomBytes, randomUUID } from 'node:crypto';
+import { existsSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import cors from 'cors';
 import express from 'express';
 import rateLimit from 'express-rate-limit';
 import helmet from 'helmet';
 import { z } from 'zod';
 import { createCognitoVerifier } from './auth.mjs';
+
+const STATIC_ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', 'dist');
 
 const workSchema = z.object({
   id: z.string().uuid(),
@@ -482,6 +487,24 @@ export function createApp({
       },
     });
   }));
+
+  if (existsSync(STATIC_ROOT)) {
+    app.use(express.static(STATIC_ROOT, {
+      index: false,
+      maxAge: config.nodeEnvironment === 'production' ? '1h' : 0,
+    }));
+
+    app.use((request, response, next) => {
+      if (request.method !== 'GET'
+        || request.path.startsWith('/v1/')
+        || request.path.startsWith('/health/')
+        || !request.accepts('html')) {
+        next();
+        return;
+      }
+      response.sendFile(join(STATIC_ROOT, 'index.html'));
+    });
+  }
 
   app.use((_request, response) => {
     response.status(404).json({ error: 'not_found' });
