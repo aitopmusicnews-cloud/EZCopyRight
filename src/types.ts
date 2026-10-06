@@ -22,4 +22,4 @@ export interface MusicalWork {
 
 export type LegalPageId = 'terms' | 'privacy' | 'refund-policy';
 
-export type Page = 'landing' | 'auth' | 'register' | 'dashboard' | 'certificate' | LegalPageId;
+export type Page = 'landing' | 'auth' | 'register' | 'dashboard' | 'agent' | 'certificate' | LegalPageId;
