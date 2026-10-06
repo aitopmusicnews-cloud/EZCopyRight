@@ -19,10 +19,15 @@ export function createCognitoVerifier({ cognitoIssuer, cognitoClientId }) {
       throw new Error('The authentication token does not identify a user.');
     }
 
+    const groups = Array.isArray(payload['cognito:groups'])
+      ? payload['cognito:groups'].filter((group) => typeof group === 'string')
+      : [];
+
     return {
       userId: payload.sub,
       email: typeof payload.email === 'string' ? payload.email : null,
       tokenUse,
+      groups,
     };
   };
 }

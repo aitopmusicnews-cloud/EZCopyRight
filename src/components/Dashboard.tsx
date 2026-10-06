@@ -1,4 +1,4 @@
-import { ArrowLeft, Plus, Fingerprint, Calendar, Music2, Eye, Trash2, Search, FileAudio, Download, CreditCard } from 'lucide-react';
+import { ArrowLeft, Plus, Fingerprint, Calendar, Music2, Eye, Trash2, Search, FileAudio, Download, CreditCard, Bot } from 'lucide-react';
 import { useState } from 'react';
 import { formatFileSize } from '../utils/crypto';
 import type { LegalPageId, MusicalWork } from '../types';
@@ -19,9 +19,11 @@ interface Props {
   billing: BillingStatus | null;
   onSubscribe: () => void;
   onManageBilling: () => void;
+  agentAllowed: boolean;
+  onAgent: () => void;
 }
 
-export default function Dashboard({ works, isLoading, userEmail, onBack, onRegister, onViewCertificate, onDownloadAudio, onDelete, onSignOut, onLegalNavigate, billing, onSubscribe, onManageBilling }: Props) {
+export default function Dashboard({ works, isLoading, userEmail, onBack, onRegister, onViewCertificate, onDownloadAudio, onDelete, onSignOut, onLegalNavigate, billing, onSubscribe, onManageBilling, agentAllowed, onAgent }: Props) {
   const [search, setSearch] = useState('');
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
 
@@ -54,6 +56,15 @@ export default function Dashboard({ works, isLoading, userEmail, onBack, onRegis
                 className="text-sm text-white/60 hover:text-white px-3 py-2 rounded-lg hover:bg-white/10 transition cursor-pointer"
               >
                 Sign Out
+              </button>
+            )}
+            {agentAllowed && (
+              <button
+                onClick={onAgent}
+                className="flex items-center gap-2 border border-orange-500/30 bg-orange-500/10 hover:bg-orange-500/20 text-orange-300 px-4 py-2 rounded-xl text-sm font-medium transition cursor-pointer"
+              >
+                <Bot className="w-4 h-4" />
+                AWS Agent
               </button>
             )}
             <button

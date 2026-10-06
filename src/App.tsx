@@ -5,6 +5,7 @@ import Certificate from './components/Certificate';
 import Dashboard from './components/Dashboard';
 import AuthScreen from './components/AuthScreen';
 import LegalPage from './components/LegalPage';
+import AgentConsole from './components/AgentConsole';
 import type { LegalPageId, MusicalWork, Page } from './types';
 import {
   completeNewPassword,
@@ -18,6 +19,7 @@ import {
 } from './lib/auth';
 import { createWork, getWorkAudioUrl, listWorks, removeWork } from './lib/worksRepository';
 import { getBillingStatus, openBillingPortal, startCheckout, type BillingStatus } from './lib/billing';
+import { getAgentAccess } from './lib/agent';
 
 const legalPathByPage: Record<LegalPageId, string> = {
   terms: '/terms',
@@ -42,6 +44,7 @@ export default function App() {
   const [appError, setAppError] = useState('');
   const [authTargetPage, setAuthTargetPage] = useState<'register' | 'dashboard'>('register');
   const [billing, setBilling] = useState<BillingStatus | null>(null);
+  const [agentAllowed, setAgentAllowed] = useState(false);
   const [postCheckout, setPostCheckout] = useState(
     () => new URLSearchParams(window.location.search).get('billing') === 'success',
   );
@@ -158,6 +161,26 @@ export default function App() {
       });
   }, [authUser]);
 
+  useEffect(() => {
+    if (!authUser) {
+      setAgentAllowed(false);
+      return;
+    }
+
+    let cancelled = false;
+    getAgentAccess()
+      .then((allowed) => {
+        if (!cancelled) setAgentAllowed(allowed);
+      })
+      .catch(() => {
+        if (!cancelled) setAgentAllowed(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [authUser]);
+
   const navigateProtected = (target: 'register' | 'dashboard') => {
     setAppError('');
     if (!authUser) {
@@ -260,6 +283,7 @@ export default function App() {
     setAuthUser(null);
     setSelectedWork(null);
     setBilling(null);
+    setAgentAllowed(false);
     setWorks([]);
     setAppError('');
     navigateHome();
@@ -384,7 +408,43 @@ export default function App() {
           onManageBilling={() => {
             void openBillingPortal().catch((error) => setAppError(error instanceof Error ? error.message : 'Billing could not be opened.'));
           }}
+          agentAllowed={agentAllowed}
+          onAgent={() => setPage('agent')}
         />
+        </>
+      );
+    case 'agent':
+      return authUser && agentAllowed ? (
+        <>
+          {errorBanner}
+          <AgentConsole
+            userEmail={authUser.email}
+            onBack={() => setPage('dashboard')}
+            onSignOut={() => {
+              void handleSignOut();
+            }}
+          />
+        </>
+      ) : (
+        <>
+          {errorBanner}
+          <Dashboard
+            works={works}
+            isLoading={worksLoading}
+            userEmail={authUser?.email ?? null}
+            onBack={navigateHome}
+            onRegister={() => navigateProtected('register')}
+            onViewCertificate={handleViewCertificate}
+            onDownloadAudio={(id) => { void handleDownloadAudio(id); }}
+            onDelete={(id) => { void handleDelete(id); }}
+            onSignOut={() => { void handleSignOut(); }}
+            onLegalNavigate={navigateLegal}
+            billing={billing}
+            onSubscribe={() => { void startCheckout().catch((error) => setAppError(error instanceof Error ? error.message : 'Checkout could not be opened.')); }}
+            onManageBilling={() => { void openBillingPortal().catch((error) => setAppError(error instanceof Error ? error.message : 'Billing could not be opened.')); }}
+            agentAllowed={agentAllowed}
+            onAgent={() => setPage('agent')}
+          />
         </>
       );
     case 'terms':
