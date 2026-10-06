@@ -38,6 +38,9 @@ jobs:
       - name: Report development dependency advisories
         run: npm audit --include=dev --audit-level=high || true
 
+      - name: Validate Azure deployment script
+        run: bash -n azure/deploy.sh
+
       - name: Run API tests
         run: npm run test:api
 
