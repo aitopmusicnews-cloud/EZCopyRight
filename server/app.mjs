@@ -226,7 +226,11 @@ export function createApp({
     next();
   };
 
-  app.get('/', (_request, response) => {
+  app.get('/', (request, response) => {
+    if (existsSync(STATIC_ROOT) && request.accepts('html')) {
+      response.sendFile(join(STATIC_ROOT, 'index.html'));
+      return;
+    }
     response.json({ service: 'EZ Copyright API', status: 'ok' });
   });
 
