@@ -13,9 +13,9 @@ function parseOrigins(value, environment) {
 }
 
 function requiredProductionValues(environment) {
-  return [
+  const storageProvider = (environment.STORAGE_PROVIDER || (environment.AZURE_STORAGE_ACCOUNT ? 'azure' : 's3')).trim();
+  const values = [
     ['DATABASE_URL', environment.DATABASE_URL],
-    ['S3_BUCKET', environment.S3_BUCKET],
     ['COGNITO_REGION', environment.COGNITO_REGION],
     ['COGNITO_USER_POOL_ID', environment.COGNITO_USER_POOL_ID],
     ['COGNITO_CLIENT_ID', environment.COGNITO_CLIENT_ID],
@@ -25,6 +25,18 @@ function requiredProductionValues(environment) {
     ['STRIPE_WEBHOOK_SECRET', environment.STRIPE_WEBHOOK_SECRET],
     ['STRIPE_PRICE_ID', environment.STRIPE_PRICE_ID],
   ];
+
+  if (storageProvider === 'azure') {
+    values.push(
+      ['AZURE_STORAGE_ACCOUNT', environment.AZURE_STORAGE_ACCOUNT],
+      ['AZURE_STORAGE_CONTAINER', environment.AZURE_STORAGE_CONTAINER],
+      ['AZURE_STORAGE_ACCOUNT_KEY', environment.AZURE_STORAGE_ACCOUNT_KEY],
+    );
+  } else {
+    values.push(['S3_BUCKET', environment.S3_BUCKET]);
+  }
+
+  return values;
 }
 
 export function validateEnvironment(environment = process.env) {
@@ -47,6 +59,7 @@ export function loadConfig(environment = process.env) {
   const userPoolId = environment.COGNITO_USER_POOL_ID?.trim() || DEFAULT_COGNITO_USER_POOL_ID;
   const clientId = environment.COGNITO_CLIENT_ID?.trim() || DEFAULT_COGNITO_CLIENT_ID;
   const databaseUrl = environment.DATABASE_URL?.trim() || '';
+  const storageProvider = (environment.STORAGE_PROVIDER || (environment.AZURE_STORAGE_ACCOUNT ? 'azure' : 's3')).trim();
   const s3Bucket = environment.S3_BUCKET?.trim() || '';
 
   return {
@@ -62,8 +75,12 @@ export function loadConfig(environment = process.env) {
     cognitoClientId: clientId,
     allowedOrigins: parseOrigins(environment.CORS_ALLOWED_ORIGINS || '', nodeEnvironment),
     policyVersion: environment.POLICY_VERSION?.trim() || '2026-08-13',
+    storageProvider,
     awsRegion: environment.AWS_REGION?.trim() || region,
     s3Bucket,
+    azureStorageAccount: environment.AZURE_STORAGE_ACCOUNT?.trim() || '',
+    azureStorageContainer: environment.AZURE_STORAGE_CONTAINER?.trim() || 'private-audio',
+    azureStorageAccountKey: environment.AZURE_STORAGE_ACCOUNT_KEY?.trim() || '',
     maxUploadBytes: Number.parseInt(environment.MAX_UPLOAD_BYTES || '536870912', 10),
     appBaseUrl: (environment.APP_BASE_URL || 'http://localhost:5173').trim().replace(/\/$/, ''),
     stripeSecretKey: environment.STRIPE_SECRET_KEY?.trim() || '',
