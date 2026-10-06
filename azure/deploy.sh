@@ -57,7 +57,7 @@ az provider register --namespace Microsoft.ContainerRegistry --wait
 az provider register --namespace Microsoft.DBforPostgreSQL --wait
 az provider register --namespace Microsoft.Storage --wait
 
-az extension add --name containerapp --upgrade --allow-preview false >/dev/null 2>&1 || \
+az extension add --name containerapp --upgrade >/dev/null 2>&1 || \
   az extension update --name containerapp >/dev/null
 
 echo "Creating resource group..."
@@ -66,15 +66,19 @@ az group create \
   --location "$LOCATION" \
   --output none
 
-echo "Creating private Blob Storage..."
-az storage account create \
-  --name "$STORAGE_ACCOUNT" \
-  --resource-group "$RESOURCE_GROUP" \
-  --location "$LOCATION" \
-  --sku Standard_LRS \
-  --kind StorageV2 \
-  --allow-blob-public-access false \
-  --output none
+echo "Preparing private Blob Storage..."
+if ! az storage account show --name "$STORAGE_ACCOUNT" --resource-group "$RESOURCE_GROUP" >/dev/null 2>&1; then
+  az storage account create \
+    --name "$STORAGE_ACCOUNT" \
+    --resource-group "$RESOURCE_GROUP" \
+    --location "$LOCATION" \
+    --sku Standard_LRS \
+    --kind StorageV2 \
+    --allow-blob-public-access false \
+    --output none
+else
+  echo "Storage account '$STORAGE_ACCOUNT' already exists; reusing it."
+fi
 
 STORAGE_KEY="$(az storage account keys list \
   --account-name "$STORAGE_ACCOUNT" \
@@ -88,39 +92,62 @@ az storage container create \
   --public-access off \
   --output none
 
-echo "Creating PostgreSQL Flexible Server..."
-az postgres flexible-server create \
-  --resource-group "$RESOURCE_GROUP" \
-  --name "$POSTGRES_SERVER" \
-  --location "$LOCATION" \
-  --admin-user "$DATABASE_ADMIN" \
-  --admin-password "$POSTGRES_PASSWORD" \
-  --tier Burstable \
-  --sku-name Standard_B1ms \
-  --storage-size 32 \
-  --storage-auto-grow Enabled \
-  --backup-retention 7 \
-  --version 16 \
-  --public-access 0.0.0.0 \
-  --yes \
-  --output none
+echo "Preparing PostgreSQL Flexible Server..."
+if az postgres flexible-server show --resource-group "$RESOURCE_GROUP" --name "$POSTGRES_SERVER" >/dev/null 2>&1; then
+  echo "PostgreSQL server '$POSTGRES_SERVER' already exists; resetting the generated admin password for this resumed deployment."
+  az postgres flexible-server update \
+    --resource-group "$RESOURCE_GROUP" \
+    --name "$POSTGRES_SERVER" \
+    --admin-password "$POSTGRES_PASSWORD" \
+    --output none
+else
+  az postgres flexible-server create \
+    --resource-group "$RESOURCE_GROUP" \
+    --name "$POSTGRES_SERVER" \
+    --location "$LOCATION" \
+    --admin-user "$DATABASE_ADMIN" \
+    --admin-password "$POSTGRES_PASSWORD" \
+    --tier Burstable \
+    --sku-name Standard_B1ms \
+    --storage-size 32 \
+    --storage-auto-grow Enabled \
+    --backup-retention 7 \
+    --version 16 \
+    --public-access 0.0.0.0 \
+    --yes \
+    --output none
+fi
 
-az postgres flexible-server db create \
+EXISTING_DATABASE="$(az postgres flexible-server db list \
   --resource-group "$RESOURCE_GROUP" \
   --server-name "$POSTGRES_SERVER" \
-  --database-name "$DATABASE_NAME" \
-  --output none
+  --query "[?name=='$DATABASE_NAME'].name | [0]" -o tsv)"
+
+if [[ "$EXISTING_DATABASE" != "$DATABASE_NAME" ]]; then
+  az postgres flexible-server db create \
+    --resource-group "$RESOURCE_GROUP" \
+    --server-name "$POSTGRES_SERVER" \
+    --name "$DATABASE_NAME" \
+    --output none
+else
+  echo "Database '$DATABASE_NAME' already exists; reusing it."
+fi
 
 DATABASE_URL="postgresql://${DATABASE_ADMIN}:${POSTGRES_PASSWORD}@${POSTGRES_SERVER}.postgres.database.azure.com:5432/${DATABASE_NAME}?sslmode=require"
 
-echo "Creating Azure Container Registry..."
-az acr create \
-  --resource-group "$RESOURCE_GROUP" \
-  --name "$ACR_NAME" \
-  --location "$LOCATION" \
-  --sku Basic \
-  --admin-enabled true \
-  --output none
+echo "Preparing Azure Container Registry..."
+if ! az acr show --resource-group "$RESOURCE_GROUP" --name "$ACR_NAME" >/dev/null 2>&1; then
+  az acr create \
+    --resource-group "$RESOURCE_GROUP" \
+    --name "$ACR_NAME" \
+    --location "$LOCATION" \
+    --sku Basic \
+    --admin-enabled true \
+    --output none
+else
+  echo "Container registry '$ACR_NAME' already exists; reusing it."
+  az acr update --name "$ACR_NAME" --admin-enabled true --output none
+fi
 
 echo "Building EZCopyRight in Azure..."
 az acr build \
@@ -133,12 +160,16 @@ ACR_SERVER="$(az acr show --name "$ACR_NAME" --resource-group "$RESOURCE_GROUP" 
 ACR_USERNAME="$(az acr credential show --name "$ACR_NAME" --query username -o tsv)"
 ACR_PASSWORD="$(az acr credential show --name "$ACR_NAME" --query 'passwords[0].value' -o tsv)"
 
-echo "Creating Container Apps environment..."
-az containerapp env create \
-  --name "$CONTAINER_ENV" \
-  --resource-group "$RESOURCE_GROUP" \
-  --location "$LOCATION" \
-  --output none
+echo "Preparing Container Apps environment..."
+if ! az containerapp env show --name "$CONTAINER_ENV" --resource-group "$RESOURCE_GROUP" >/dev/null 2>&1; then
+  az containerapp env create \
+    --name "$CONTAINER_ENV" \
+    --resource-group "$RESOURCE_GROUP" \
+    --location "$LOCATION" \
+    --output none
+else
+  echo "Container Apps environment '$CONTAINER_ENV' already exists; reusing it."
+fi
 
 echo "Deploying EZCopyRight..."
 az containerapp create \
