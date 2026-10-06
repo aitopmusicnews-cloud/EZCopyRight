@@ -26,7 +26,7 @@ Evidence records are not government copyright registrations. Preserve that disti
 - One always-running **ECS Fargate** task serves the dashboard and polls the durable work queue. This avoids relying on background timers in a request-scaled hosting service.
 - An **HTTPS Application Load Balancer** fronts the task. Task port 8080 only accepts inbound traffic from the ALB security group.
 - A separate **Cognito app client** uses authorization-code flow with PKCE. API calls verify the ID token signature, issuer, audience, expiry, token use, and explicit owner `sub` allowlist. Ordinary app users cannot access operations.
-- The existing RDS instance can host an isolated `ez_agent` schema. The agent uses a schema-specific runtime login and a second SELECT-only application login. It never uses the app's database-owner credentials.
+- The existing RDS instance hosts an isolated `ez_agent` schema. The agent uses two dedicated PostgreSQL roles authenticated with short-lived **RDS IAM database tokens**: a schema-specific runtime role and a SELECT-only application reader. No database password is stored in the agent secret, and the agent never uses the app's database-owner credentials.
 - An advisory lock elects a single monitoring worker across task replacements. Jobs survive restarts. Interrupted jobs are marked failed and must be rerun; interrupted actions require reconciliation.
 - OpenAI Responses tools can read and **propose**. They cannot approve or execute. Approval endpoints execute a strict, fixed tool allowlist outside the model loop.
 - Scans run every 15 minutes; the default cap is 120 investigations per rolling 24 hours, including manually requested jobs. A run has a six-turn tool limit and a time bound. This is a run limit, not a monetary budget; also set your OpenAI project spending controls.
@@ -39,7 +39,7 @@ The supplied network configuration uses existing public subnets with internet-ga
 2. Install: `cd operations-agent && npm ci`.
 3. Copy `infra/config.example.json` to the ignored `infra/config.json`. Fill real resource IDs, two public subnets in distinct availability zones in the database VPC, your Cognito user `sub`, existing Cognito Hosted UI domain, an enabled OpenAI model, and the Stripe **product and price for the selected environment**. Use `agent.ezwaycopyrights.com` or your chosen hostname.
 4. Obtain an ACM certificate for that hostname in the same AWS region and complete DNS validation. Set its ARN in the config. The template creates a new Cognito app client with that hostname as its callback/logout destination.
-5. Apply `src/migration.sql` using a schema-owner/DBA connection, then adapt and run `infra/database-grants.sql`. Replace `CURRENT_DATABASE_PLACEHOLDER` with the actual database identifier and set dedicated role passwords securely. Runtime credentials cannot run migrations. `npm run migrate` is an alternative when migration credentials are provided through environment variables.
+5. Enable RDS IAM database authentication on the existing PostgreSQL instance. Apply `src/migration.sql` using a schema-owner/DBA connection, then adapt and run `infra/database-grants.sql` with `CURRENT_DATABASE_PLACEHOLDER` replaced by the database name. The grants create/prepare the dedicated IAM-authenticated runtime and read-only roles; no database passwords are required. Runtime roles cannot run migrations.
 6. Create a Secrets Manager secret containing the JSON fields listed below. Use the complete ARN including its six-character suffix. If using a customer-managed KMS key, explicitly grant the ECS execution role decrypt access before launch.
 7. Run `npm test`, `npm run synth`, then `npm run diff`. Review the new resources and the one added database security-group rule. Bootstrap CDK in the account/region if not already done. The deployment builds and uploads the agent Docker image through CDK's asset registry.
 8. Deploy with `npm run deploy`. Create a DNS-only CNAME from your agent hostname to the `DnsCnameTarget` output. The certificate and HTTPS listener terminate TLS. Wait for healthy ECS targets.
@@ -66,7 +66,7 @@ Stripe read access: prices, subscriptions, invoices, invoice payments, payment i
 
 GitHub read access: contents, actions, pull requests, metadata. Draft PRs additionally require contents and pull-request write. Workflow-file changes need GitHub's corresponding workflow permission; otherwise those proposals fail and require investigation. The agent never merges or runs generated code on its own host.
 
-The application reader has column-level SELECT permissions only for the actual counts and membership checks used. Its default SQL transaction mode is read-only. Database TLS verifies certificates; there is no `rejectUnauthorized:false` bypass.
+The application reader has column-level SELECT permissions only for the actual counts and membership checks used. Its default SQL transaction mode is read-only. Both database roles use short-lived RDS IAM authentication tokens and least-privilege `rds-db:connect` task IAM. Database TLS verifies the AWS RDS certificate chain; there is no `rejectUnauthorized:false` bypass.
 
 ## Operator workflow
 

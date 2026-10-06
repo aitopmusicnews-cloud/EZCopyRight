@@ -21,6 +21,12 @@
   "amplifyAppId": "REPLACE",
   "amplifyBranch": "main",
   "rdsInstanceId": "REPLACE",
+  "rdsResourceId": "db-REPLACE",
+  "databaseHost": "REPLACE.us-west-2.rds.amazonaws.com",
+  "databasePort": 5432,
+  "databaseName": "ezcopyright",
+  "databaseRuntimeUser": "ez_agent_runtime",
+  "appDatabaseUser": "ez_agent_app_reader",
   "s3Bucket": "REPLACE",
   "alarmNames": [],
   "enableWrites": false
