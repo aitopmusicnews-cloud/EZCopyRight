@@ -4,7 +4,10 @@ const https = z.string().url().refine(v => new URL(v).protocol === 'https:', 'HT
 const schema = z.object({
   NODE_ENV:z.string().default('production'), PORT:z.coerce.number().int().min(1).max(65535).default(8080),
   AGENT_ORIGIN:https, APP_ORIGIN:https.default('https://ezwaycopyrights.com'), API_ORIGIN:https,
-  DATABASE_URL:z.string().min(1), APP_DATABASE_URL:z.string().min(1), DATABASE_CA:z.string().optional(), DATABASE_SSL: z.enum(['true','false']).default('true'),
+  DATABASE_IAM_AUTH:bool, DATABASE_URL:z.string().min(1).optional(), APP_DATABASE_URL:z.string().min(1).optional(),
+  DATABASE_HOST:z.string().min(1).optional(), DATABASE_PORT:z.coerce.number().int().min(1).max(65535).default(5432), DATABASE_NAME:z.string().min(1).optional(),
+  DATABASE_RUNTIME_USER:z.string().min(1).default('ez_agent_runtime'), APP_DATABASE_USER:z.string().min(1).default('ez_agent_app_reader'),
+  DATABASE_CA:z.string().optional(), DATABASE_SSL: z.enum(['true','false']).default('true'),
   AWS_REGION:z.string().default('us-west-2'), COGNITO_USER_POOL_ID:z.string().min(1), COGNITO_CLIENT_ID:z.string().min(1), COGNITO_DOMAIN:https,
   OWNER_SUBS:z.string().min(1).transform(v=>v.split(',').map(s=>s.trim()).filter(Boolean)).refine(v=>v.length>0),
   OPENAI_API_KEY:z.string().min(1), OPENAI_MODEL:z.string().min(1),
@@ -20,6 +23,11 @@ export function loadConfig(env=process.env) {
   const config=schema.parse({...JSON.parse(env.AGENT_SECRETS_JSON || '{}'),...env});
   for(const key of ['STRIPE_READ_KEY','STRIPE_WRITE_KEY']) if(config[key] && config[key].includes('_live_')!==config.STRIPE_LIVE) throw new Error(`${key} mode mismatch`);
   if(config.NODE_ENV==='production' && config.DATABASE_SSL!=='true') throw new Error('Production database TLS is required');
+  if(config.DATABASE_IAM_AUTH){
+    for(const key of ['DATABASE_HOST','DATABASE_NAME']) if(!config[key]) throw new Error(`${key} required when DATABASE_IAM_AUTH=true`);
+  } else {
+    for(const key of ['DATABASE_URL','APP_DATABASE_URL']) if(!config[key]) throw new Error(`${key} required when DATABASE_IAM_AUTH=false`);
+  }
   if(!/^[\w.-]+\/[\w.-]+$/.test(config.GITHUB_REPOSITORY)) throw new Error('Invalid repository');
   for(const k of ['AGENT_ORIGIN','APP_ORIGIN','API_ORIGIN']) {
     const u=new URL(config[k]);
