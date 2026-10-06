@@ -1,10 +1,6 @@
 import { getAccessToken } from './auth';
 
-const DEFAULT_AGENT_API_BASE_URL = 'https://hqohfpx6i7.execute-api.us-west-2.amazonaws.com';
-
-const AGENT_API_BASE_URL = (
-  import.meta.env.VITE_AGENT_API_URL || DEFAULT_AGENT_API_BASE_URL
-).trim().replace(/\/$/, '');
+const AGENT_API_BASE_URL = (import.meta.env.VITE_AGENT_API_URL || '').trim().replace(/\/$/, '');
 
 export interface AgentReply {
   ok: boolean;
@@ -18,8 +14,10 @@ export interface AgentReply {
 }
 
 async function agentRequest<T>(path: string, init: RequestInit = {}): Promise<T> {
+  if (!AGENT_API_BASE_URL) throw new Error('The operations agent is not configured for this deployment.');
+
   const token = await getAccessToken();
-  if (!token) throw new Error('Please sign in again to use the AWS Agent.');
+  if (!token) throw new Error('Please sign in again to use the operations agent.');
 
   const response = await fetch(AGENT_API_BASE_URL + path, {
     ...init,
@@ -32,15 +30,16 @@ async function agentRequest<T>(path: string, init: RequestInit = {}): Promise<T>
 
   const data = await response.json().catch(() => ({}));
   if (!response.ok) {
-    if (response.status === 401) throw new Error('Please sign out and sign back in to refresh your admin access.');
-    if (response.status === 403) throw new Error('This account is not authorized to use the AWS Agent.');
-    throw new Error(data?.message || data?.error || 'The AWS Agent request failed.');
+    if (response.status === 401) throw new Error('Please sign out and sign back in.');
+    if (response.status === 403) throw new Error('This account is not authorized to use the operations agent.');
+    throw new Error(data?.message || data?.error || 'The operations agent request failed.');
   }
 
   return data as T;
 }
 
 export async function getAgentAccess(): Promise<boolean> {
+  if (!AGENT_API_BASE_URL) return false;
   try {
     const result = await agentRequest<{ allowed: boolean }>('/access');
     return Boolean(result.allowed);
