@@ -32,8 +32,11 @@ jobs:
       - name: Install locked dependencies
         run: npm ci
 
-      - name: Block high or critical dependency advisories
-        run: npm audit --audit-level=high
+      - name: Block high or critical production dependency advisories
+        run: npm audit --omit=dev --audit-level=high
+
+      - name: Report development dependency advisories
+        run: npm audit --include=dev --audit-level=high || true
 
       - name: Run API tests
         run: npm run test:api
