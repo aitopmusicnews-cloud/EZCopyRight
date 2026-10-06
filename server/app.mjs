@@ -35,6 +35,11 @@ const consentSchema = z.object({
   sourceFlow: z.enum(['signup', 'checkout', 'settings']),
 });
 
+const agentRequestSchema = z.object({
+  message: z.string().trim().min(1).max(4_000),
+  confirmDeployment: z.boolean().optional().default(false),
+});
+
 function asyncRoute(handler) {
   return (request, response, next) => {
     Promise.resolve(handler(request, response, next)).catch(next);
@@ -103,6 +108,7 @@ export function createApp({
   config,
   storage,
   billing = { status: async () => ({ active: true, remaining: 5, limit: 5 }) },
+  agent = { ask: async () => ({ ok: false, reply: 'The AWS Agent is not configured.' }) },
   verifyToken = createCognitoVerifier(config),
 }) {
   const app = express();
@@ -203,6 +209,18 @@ export function createApp({
     legacyHeaders: false,
   });
 
+  function isAgentAdmin(request) {
+    return Array.isArray(request.auth?.groups) && request.auth.groups.includes(config.agentAdminGroup);
+  }
+
+  const requireAgentAdmin = (request, response, next) => {
+    if (!isAgentAdmin(request)) {
+      response.status(403).json({ error: 'agent_admin_required', requestId: request.id });
+      return;
+    }
+    next();
+  };
+
   app.get('/', (_request, response) => {
     response.json({ service: 'EZ Copyright API', status: 'ok' });
   });
@@ -219,6 +237,20 @@ export function createApp({
   app.get('/v1/me', authenticate, (request, response) => {
     response.json({ id: request.auth.userId, email: request.auth.email });
   });
+
+  app.get('/v1/agent/access', authenticate, (request, response) => {
+    response.json({ allowed: isAgentAdmin(request) });
+  });
+
+  app.post('/v1/agent/chat', authenticate, requireAgentAdmin, writeLimiter, asyncRoute(async (request, response) => {
+    const input = agentRequestSchema.parse(request.body);
+    const result = await agent.ask(input);
+    await recordAudit(database, request, input.confirmDeployment ? 'agent.deployment_approved' : 'agent.query', 'agent', 'ezcopyright-agent', {
+      requiresConfirmation: Boolean(result?.requiresConfirmation),
+      pendingAction: result?.pendingAction?.name || null,
+    });
+    response.json(result);
+  }));
 
   app.get('/v1/billing/status', authenticate, asyncRoute(async (request, response) => {
     response.json(await billing.status(database, request.auth.userId));
