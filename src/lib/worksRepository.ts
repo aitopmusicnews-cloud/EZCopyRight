@@ -1,5 +1,5 @@
 import type { MusicalWork } from '../types';
-import { API_BASE_URL } from './api';
+import { apiFetch } from './api';
 import { signIn } from './auth';
 
 function authHeaders(json = false): Record<string, string> {
@@ -18,8 +18,7 @@ async function apiError(response: Response, fallback: string): Promise<Error> {
 }
 
 export async function listWorks(_userId: string): Promise<MusicalWork[]> {
-  const response = await fetch(`${API_BASE_URL}/v1/works`, {
-    credentials: 'same-origin',
+  const response = await apiFetch('/v1/works', {
     headers: authHeaders(),
   });
   if (!response.ok) throw await apiError(response, 'Could not load registered works.');
@@ -30,9 +29,8 @@ export async function listWorks(_userId: string): Promise<MusicalWork[]> {
 export async function createWork(_userId: string, work: MusicalWork, file?: File): Promise<MusicalWork> {
   if (!file) throw new Error('An audio file is required to register this work.');
 
-  const uploadResponse = await fetch(`${API_BASE_URL}/v1/uploads`, {
+  const uploadResponse = await apiFetch('/v1/uploads', {
     method: 'POST',
-    credentials: 'same-origin',
     headers: authHeaders(true),
     body: JSON.stringify({
       fileHash: work.fileHash,
@@ -51,7 +49,7 @@ export async function createWork(_userId: string, work: MusicalWork, file?: File
   });
   if (!storedResponse.ok) throw new Error('The audio file could not be uploaded to storage.');
 
-  const completeResponse = await fetch(`${API_BASE_URL}/v1/uploads/${encodeURIComponent(upload.uploadId)}/complete`, {
+  const completeResponse = await apiFetch(`/v1/uploads/${encodeURIComponent(upload.uploadId)}/complete`, {
     method: 'POST',
     credentials: 'same-origin',
     headers: authHeaders(true),
@@ -59,7 +57,7 @@ export async function createWork(_userId: string, work: MusicalWork, file?: File
   });
   if (!completeResponse.ok) throw await apiError(completeResponse, 'The uploaded audio could not be verified.');
 
-  const workResponse = await fetch(`${API_BASE_URL}/v1/works`, {
+  const workResponse = await apiFetch('/v1/works', {
     method: 'POST',
     credentials: 'same-origin',
     headers: authHeaders(true),
@@ -85,7 +83,7 @@ export async function createWork(_userId: string, work: MusicalWork, file?: File
 }
 
 export async function removeWork(_userId: string, workId: string): Promise<void> {
-  const response = await fetch(`${API_BASE_URL}/v1/works/${encodeURIComponent(workId)}`, {
+  const response = await apiFetch(`/v1/works/${encodeURIComponent(workId)}`, {
     method: 'DELETE',
     credentials: 'same-origin',
     headers: authHeaders(),
@@ -94,8 +92,7 @@ export async function removeWork(_userId: string, workId: string): Promise<void>
 }
 
 export async function getWorkAudioUrl(workId: string): Promise<string> {
-  const response = await fetch(`${API_BASE_URL}/v1/works/${encodeURIComponent(workId)}/audio`, {
-    credentials: 'same-origin',
+  const response = await apiFetch(`/v1/works/${encodeURIComponent(workId)}/audio`, {
     headers: authHeaders(),
   });
   if (!response.ok) throw await apiError(response, 'Could not create download link.');

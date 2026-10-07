@@ -1,4 +1,4 @@
-import { API_BASE_URL } from './api';
+import { apiFetch } from './api';
 import { signIn } from './auth';
 
 export interface BillingStatus {
@@ -18,9 +18,8 @@ async function apiRequest<T>(
   path: string,
   options: RequestInit = {},
 ): Promise<T> {
-  const response = await fetch(`${API_BASE_URL}${path}`, {
+  const response = await apiFetch(path, {
     ...options,
-    credentials: 'same-origin',
     headers: {
       'Content-Type': 'application/json',
       ...(options.headers || {}),
