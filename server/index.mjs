@@ -4,7 +4,6 @@ import { createDatabase, runMigrations } from './db.mjs';
 import { createS3Storage } from './storage.mjs';
 import { createAzureBlobStorage } from './storage-azure.mjs';
 import { createStripeBilling } from './billing.mjs';
-import { createCognitoAccountManager } from './cognito-admin.mjs';
 import { createAgentBridge } from './agent.mjs';
 
 const config = loadConfig();
@@ -12,8 +11,7 @@ const database = createDatabase(config);
 const storage = config.storageProvider === 'azure'
   ? createAzureBlobStorage(config)
   : createS3Storage(config);
-const accounts = createCognitoAccountManager(config);
-const billing = createStripeBilling(config, { accounts });
+const billing = createStripeBilling(config);
 const agent = createAgentBridge(config);
 
 await runMigrations(database);
