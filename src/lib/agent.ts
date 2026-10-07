@@ -1,6 +1,4 @@
-import { getAccessToken } from './auth';
-
-const AGENT_API_BASE_URL = (import.meta.env.VITE_AGENT_API_URL || '').trim().replace(/\/$/, '');
+import { API_BASE_URL } from './api';
 
 export interface AgentReply {
   ok: boolean;
@@ -14,15 +12,10 @@ export interface AgentReply {
 }
 
 async function agentRequest<T>(path: string, init: RequestInit = {}): Promise<T> {
-  if (!AGENT_API_BASE_URL) throw new Error('The operations agent is not configured for this deployment.');
-
-  const token = await getAccessToken();
-  if (!token) throw new Error('Please sign in again to use the operations agent.');
-
-  const response = await fetch(AGENT_API_BASE_URL + path, {
+  const response = await fetch(API_BASE_URL + path, {
     ...init,
+    credentials: 'same-origin',
     headers: {
-      Authorization: 'Bearer ' + token,
       'Content-Type': 'application/json',
       ...(init.headers || {}),
     },
@@ -39,9 +32,8 @@ async function agentRequest<T>(path: string, init: RequestInit = {}): Promise<T>
 }
 
 export async function getAgentAccess(): Promise<boolean> {
-  if (!AGENT_API_BASE_URL) return false;
   try {
-    const result = await agentRequest<{ allowed: boolean }>('/access');
+    const result = await agentRequest<{ allowed: boolean }>('/v1/agent/access');
     return Boolean(result.allowed);
   } catch {
     return false;
@@ -49,7 +41,7 @@ export async function getAgentAccess(): Promise<boolean> {
 }
 
 export async function askAgent(message: string, confirmDeployment = false): Promise<AgentReply> {
-  return agentRequest<AgentReply>('/agent', {
+  return agentRequest<AgentReply>('/v1/agent/chat', {
     method: 'POST',
     body: JSON.stringify({ message, confirmDeployment }),
   });
