@@ -100,6 +100,7 @@ export function createClerkIdentityReader(config) {
     try {
       const { payload } = await jwtVerify(token, jwks, {
         algorithms: ['RS256'],
+        clockTolerance: 5,
       });
 
       if (payload.sts === 'pending') return null;
@@ -107,6 +108,11 @@ export function createClerkIdentityReader(config) {
       if (payload.azp && authorizedParties.size > 0) {
         const parties = Array.isArray(payload.azp) ? payload.azp : [payload.azp];
         if (!parties.some((party) => typeof party === 'string' && authorizedParties.has(party))) {
+          console.warn(JSON.stringify({
+            level: 'warn',
+            message: 'Clerk token rejected: unauthorized party',
+            authorizedParty: parties.find((party) => typeof party === 'string') || null,
+          }));
           return null;
         }
       }
@@ -133,7 +139,13 @@ export function createClerkIdentityReader(config) {
         groups: [...new Set(groups)],
         provider: 'clerk',
       };
-    } catch {
+    } catch (error) {
+      console.warn(JSON.stringify({
+        level: 'warn',
+        message: 'Clerk token verification failed',
+        code: typeof error?.code === 'string' ? error.code : null,
+        name: typeof error?.name === 'string' ? error.name : null,
+      }));
       return null;
     }
   };
