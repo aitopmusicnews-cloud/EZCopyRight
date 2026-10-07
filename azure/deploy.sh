@@ -201,9 +201,6 @@ az containerapp create \
     "AZURE_STORAGE_ACCOUNT=${STORAGE_ACCOUNT}" \
     "AZURE_STORAGE_CONTAINER=${STORAGE_CONTAINER}" \
     "AZURE_STORAGE_ACCOUNT_KEY=secretref:azure-storage-key" \
-    "COGNITO_REGION=us-west-2" \
-    "COGNITO_USER_POOL_ID=us-west-2_jJs1JIarh" \
-    "COGNITO_CLIENT_ID=6j3dpm8g95pa2uuevfuk206qdi" \
     "CORS_ALLOWED_ORIGINS=https://ezwaycopyrights.com" \
     "APP_BASE_URL=https://ezwaycopyrights.com" \
     "POLICY_VERSION=2026-08-13" \
