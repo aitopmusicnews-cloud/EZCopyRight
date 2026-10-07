@@ -321,7 +321,7 @@ export default function App() {
             workCount={works.length}
             isAuthenticated={Boolean(authUser)}
             userEmail={authUser?.email ?? null}
-            authModeLabel="Microsoft Entra secure sign-in"
+            authModeLabel="Secure customer sign-in"
             onAuthAction={() => beginAuth('dashboard')}
             onSignOut={() => {
               void handleSignOut();
