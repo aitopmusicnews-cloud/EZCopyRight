@@ -1,5 +1,3 @@
-const AUTH_PROVIDER = 'ezid';
-
 export type AuthMode = 'entra-external-id';
 
 export interface AuthUser {
@@ -82,10 +80,24 @@ export function subscribeToAuthChanges(callback: (user: AuthUser | null) => void
   };
 }
 
+async function getAuthProvider(): Promise<string> {
+  const response = await fetch('/v1/auth/config', {
+    credentials: 'same-origin',
+    cache: 'no-store',
+    headers: { Accept: 'application/json' },
+  });
+  if (!response.ok) throw new Error('Could not load the sign-in configuration.');
+  const payload = await response.json().catch(() => ({}));
+  const provider = typeof payload?.provider === 'string' ? payload.provider.trim() : '';
+  if (!/^[A-Za-z0-9]+$/.test(provider)) throw new Error('The sign-in provider is not configured correctly.');
+  return provider;
+}
+
 export async function signIn(postLoginRedirectUri = '/'): Promise<void> {
   const redirect = postLoginRedirectUri.startsWith('/') ? postLoginRedirectUri : '/';
+  const provider = await getAuthProvider();
   window.location.assign(
-    `/.auth/login/${AUTH_PROVIDER}?post_login_redirect_uri=${encodeURIComponent(redirect)}`,
+    `/.auth/login/${provider}?post_login_redirect_uri=${encodeURIComponent(redirect)}`,
   );
 }
 
