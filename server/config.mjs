@@ -73,6 +73,7 @@ export function loadConfig(environment = process.env) {
     stripeWebhookSecret: environment.STRIPE_WEBHOOK_SECRET?.trim() || '',
     stripePriceId: environment.STRIPE_PRICE_ID?.trim() || '',
     monthlyRegistrationLimit: Number.parseInt(environment.MONTHLY_REGISTRATION_LIMIT || '5', 10),
+    authProvider: environment.AUTH_PROVIDER?.trim() || 'ezid',
     agentFunctionName: environment.AGENT_FUNCTION_NAME?.trim() || 'ezcopyright-agent-brain',
     agentAdminGroup: environment.AGENT_ADMIN_GROUP?.trim() || 'ezcopyright-admin',
   };
