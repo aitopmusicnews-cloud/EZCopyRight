@@ -40,7 +40,7 @@ interface ClerkUser {
 }
 
 interface ClerkSession {
-  getToken: () => Promise<string | null>;
+  getToken: (options?: { skipCache?: boolean }) => Promise<string | null>;
 }
 
 interface ClerkResources {
@@ -223,11 +223,12 @@ export async function getCurrentUser(): Promise<AuthUser | null> {
   return getEasyAuthUser();
 }
 
-export async function getAuthToken(): Promise<string | null> {
+export async function getAuthToken(forceRefresh = false): Promise<string | null> {
   const config = await getAuthConfig();
   if (config.mode !== 'clerk') return null;
   const clerk = await loadClerk();
-  return clerk.session?.getToken() || null;
+  if (!clerk.session) return null;
+  return clerk.session.getToken(forceRefresh ? { skipCache: true } : undefined);
 }
 
 export function subscribeToAuthChanges(callback: (user: AuthUser | null) => void): () => void {

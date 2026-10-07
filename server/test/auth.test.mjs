@@ -67,6 +67,18 @@ test('Clerk identity reader verifies signed session cookies and authorized party
       provider: 'clerk',
     });
 
+    const bearerIdentity = await readIdentity(mockRequest({ authorization: `Bearer ${token}` }));
+    assert.equal(bearerIdentity?.userId, 'user_clerk_123');
+
+    const slightlyEarlyToken = await new SignJWT({ azp: 'https://ezwaycopyrights.com' })
+      .setProtectedHeader({ alg: 'RS256', kid: 'test-key' })
+      .setSubject('user_clock_skew')
+      .setIssuedAt()
+      .setNotBefore(Math.floor(Date.now() / 1000) + 3)
+      .setExpirationTime('5m')
+      .sign(privateKey);
+    assert.equal((await readIdentity(mockRequest({ token: slightlyEarlyToken })))?.userId, 'user_clock_skew');
+
     const wrongPartyToken = await new SignJWT({ azp: 'https://evil.example' })
       .setProtectedHeader({ alg: 'RS256', kid: 'test-key' })
       .setSubject('user_clerk_123')
