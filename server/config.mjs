@@ -62,7 +62,6 @@ export function loadConfig(environment = process.env) {
   const nodeEnvironment = environment.NODE_ENV?.trim() || 'development';
   const databaseUrl = environment.DATABASE_URL?.trim() || '';
   const storageProvider = (environment.STORAGE_PROVIDER || (environment.AZURE_STORAGE_ACCOUNT ? 'azure' : 's3')).trim();
-  const awsRegion = environment.AWS_REGION?.trim() || 'us-west-2';
   const appBaseUrl = (environment.APP_BASE_URL || 'http://localhost:5173').trim().replace(/\/$/, '');
   const authMode = (environment.AUTH_MODE || 'easy-auth').trim();
   const clerkFrontendApi = (environment.CLERK_FRONTEND_API || '').trim().replace(/\/$/, '');
@@ -77,7 +76,6 @@ export function loadConfig(environment = process.env) {
     allowedOrigins: parseOrigins(environment.CORS_ALLOWED_ORIGINS || '', nodeEnvironment),
     policyVersion: environment.POLICY_VERSION?.trim() || '2026-08-13',
     storageProvider,
-    awsRegion,
     s3Bucket: environment.S3_BUCKET?.trim() || '',
     azureStorageAccount: environment.AZURE_STORAGE_ACCOUNT?.trim() || '',
     azureStorageContainer: environment.AZURE_STORAGE_CONTAINER?.trim() || 'private-audio',
@@ -94,7 +92,9 @@ export function loadConfig(environment = process.env) {
     clerkFrontendApi,
     clerkJwksUrl: (environment.CLERK_JWKS_URL || (clerkFrontendApi ? `${clerkFrontendApi}/.well-known/jwks.json` : '')).trim(),
     clerkAuthorizedParties: parseList(environment.CLERK_AUTHORIZED_PARTIES || appBaseUrl),
-    agentFunctionName: environment.AGENT_FUNCTION_NAME?.trim() || 'ezcopyright-agent-brain',
+    azureOpenAiEndpoint: environment.AZURE_OPENAI_ENDPOINT?.trim() || '',
+    azureOpenAiApiKey: environment.AZURE_OPENAI_API_KEY?.trim() || '',
+    azureOpenAiModel: environment.AZURE_OPENAI_MODEL?.trim() || 'gpt-4.1-mini',
     agentAdminGroup: environment.AGENT_ADMIN_GROUP?.trim() || 'ezcopyright-admin',
     agentAdminUserIds: parseList(environment.AGENT_ADMIN_USER_IDS || ''),
   };
