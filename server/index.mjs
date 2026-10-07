@@ -5,6 +5,7 @@ import { createS3Storage } from './storage.mjs';
 import { createAzureBlobStorage } from './storage-azure.mjs';
 import { createStripeBilling } from './billing.mjs';
 import { createAgentBridge } from './agent.mjs';
+import { createClerkIdentityReader, readEasyAuthIdentity } from './auth.mjs';
 
 const config = loadConfig();
 const database = createDatabase(config);
@@ -13,10 +14,13 @@ const storage = config.storageProvider === 'azure'
   : createS3Storage(config);
 const billing = createStripeBilling(config);
 const agent = createAgentBridge(config);
+const getIdentity = config.authMode === 'clerk'
+  ? createClerkIdentityReader(config)
+  : readEasyAuthIdentity;
 
 await runMigrations(database);
 
-const app = createApp({ database, config, storage, billing, agent });
+const app = createApp({ database, config, storage, billing, agent, getIdentity });
 const server = app.listen(config.port, '0.0.0.0', () => {
   console.log(JSON.stringify({
     level: 'info',
