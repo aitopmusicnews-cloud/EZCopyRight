@@ -1,4 +1,4 @@
-import { API_BASE_URL } from './api';
+import { apiFetch } from './api';
 import { signIn } from './auth';
 
 export interface AgentReply {
@@ -13,9 +13,8 @@ export interface AgentReply {
 }
 
 async function agentRequest<T>(path: string, init: RequestInit = {}): Promise<T> {
-  const response = await fetch(API_BASE_URL + path, {
+  const response = await apiFetch(path, {
     ...init,
-    credentials: 'same-origin',
     headers: {
       'Content-Type': 'application/json',
       ...(init.headers || {}),
