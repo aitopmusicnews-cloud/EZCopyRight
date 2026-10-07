@@ -7,7 +7,7 @@ import express from 'express';
 import rateLimit from 'express-rate-limit';
 import helmet from 'helmet';
 import { z } from 'zod';
-import { createCognitoVerifier } from './auth.mjs';
+import { readEasyAuthIdentity } from './auth.mjs';
 
 const STATIC_ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', 'dist');
 
@@ -114,7 +114,7 @@ export function createApp({
   storage,
   billing = { status: async () => ({ active: true, remaining: 5, limit: 5 }) },
   agent = { ask: async () => ({ ok: false, reply: 'The AWS Agent is not configured.' }) },
-  verifyToken = createCognitoVerifier(config),
+  getIdentity = readEasyAuthIdentity,
 }) {
   const app = express();
   app.set('trust proxy', 1);
@@ -172,40 +172,21 @@ export function createApp({
     legacyHeaders: false,
   }));
 
-  const authenticate = asyncRoute(async (request, response, next) => {
-    const authorization = request.get('authorization') || '';
-    const match = authorization.match(/^Bearer\s+(.+)$/i);
-    if (!match) {
+  const authenticate = (request, response, next) => {
+    const identity = getIdentity(request);
+    if (!identity) {
       response.status(401).json({ error: 'authentication_required', requestId: request.id });
       return;
     }
+    request.auth = identity;
+    next();
+  };
 
-    try {
-      request.auth = await verifyToken(match[1]);
-      next();
-    } catch {
-      response.status(401).json({ error: 'invalid_authentication', requestId: request.id });
-    }
-  });
-
-  const authenticateIfPresent = asyncRoute(async (request, response, next) => {
-    const authorization = request.get('authorization') || '';
-    if (!authorization) {
-      next();
-      return;
-    }
-    const match = authorization.match(/^Bearer\s+(.+)$/i);
-    if (!match) {
-      response.status(401).json({ error: 'invalid_authentication', requestId: request.id });
-      return;
-    }
-    try {
-      request.auth = await verifyToken(match[1]);
-      next();
-    } catch {
-      response.status(401).json({ error: 'invalid_authentication', requestId: request.id });
-    }
-  });
+  const authenticateIfPresent = (request, response, next) => {
+    const identity = getIdentity(request);
+    if (identity) request.auth = identity;
+    next();
+  };
 
   const writeLimiter = rateLimit({
     windowMs: 15 * 60 * 1000,
@@ -265,7 +246,7 @@ export function createApp({
     response.json(await billing.status(database, request.auth.userId));
   }));
 
-  app.post('/v1/billing/checkout', authenticateIfPresent, writeLimiter, asyncRoute(async (request, response) => {
+  app.post('/v1/billing/checkout', authenticate, writeLimiter, asyncRoute(async (request, response) => {
     const session = await billing.createCheckout({
       database,
       userId: request.auth?.userId ?? null,

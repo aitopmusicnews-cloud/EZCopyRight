@@ -3,12 +3,9 @@ import { once } from 'node:events';
 import test from 'node:test';
 import { createApp } from '../app.mjs';
 import { createStripeBilling } from '../billing.mjs';
-import { createCognitoAccountManager } from '../cognito-admin.mjs';
 
 const config = {
   nodeEnvironment: 'test',
-  cognitoIssuer: 'https://example.test/pool',
-  cognitoClientId: 'client-id',
   allowedOrigins: ['https://frontend.example'],
   policyVersion: '2026-08-13',
   maxUploadBytes: 536870912,
@@ -32,55 +29,58 @@ async function request(app, path, init) {
   }
 }
 
-test('billing and Cognito provisioning modules load', () => {
+test('billing module loads', () => {
   assert.equal(typeof createStripeBilling, 'function');
-  assert.equal(typeof createCognitoAccountManager, 'function');
 });
 
 test('liveness endpoint does not require authentication', async () => {
   const database = { query: async () => ({ rows: [] }) };
-  const app = createApp({ database, config, storage, verifyToken: async () => null });
+  const app = createApp({ database, config, storage });
   const response = await request(app, '/health/live');
   assert.equal(response.status, 200);
   assert.deepEqual(await response.json(), { status: 'ok' });
 });
 
-test('protected endpoints reject requests without a bearer token', async () => {
+test('protected endpoints reject requests without an Easy Auth identity', async () => {
   const database = { query: async () => ({ rows: [] }) };
-  const app = createApp({ database, config, storage, verifyToken: async () => null });
+  const app = createApp({ database, config, storage });
   const response = await request(app, '/v1/works');
   assert.equal(response.status, 401);
   assert.equal((await response.json()).error, 'authentication_required');
 });
 
-test('subscription checkout can start before account sign-in', async () => {
+test('subscription checkout requires an Easy Auth identity', async () => {
   const database = { query: async () => ({ rows: [] }) };
   let checkoutArgs = null;
   const billing = {
     createCheckout: async (args) => {
       checkoutArgs = args;
-      return { id: 'cs_guest', url: 'https://checkout.example/session' };
+      return { id: 'cs_member', url: 'https://checkout.example/session' };
     },
   };
-  const app = createApp({
-    database,
-    config,
-    storage,
-    billing,
-    verifyToken: async () => {
-      throw new Error('Guest checkout should not verify a token.');
-    },
-  });
-  const response = await request(app, '/v1/billing/checkout', {
+  const app = createApp({ database, config, storage, billing });
+
+  const guest = await request(app, '/v1/billing/checkout', {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({}),
+  });
+  assert.equal(guest.status, 401);
+
+  const response = await request(app, '/v1/billing/checkout', {
+    method: 'POST',
+    headers: {
+      'content-type': 'application/json',
+      'x-ms-client-principal-id': 'entra-user-123',
+      'x-ms-client-principal-name': 'artist@example.com',
+    },
     body: JSON.stringify({}),
   });
 
   assert.equal(response.status, 201);
   assert.equal((await response.json()).url, 'https://checkout.example/session');
-  assert.equal(checkoutArgs.userId, null);
-  assert.equal(checkoutArgs.email, null);
+  assert.equal(checkoutArgs.userId, 'entra-user-123');
+  assert.equal(checkoutArgs.email, 'artist@example.com');
 });
 
 test('work creation uses authenticated ownership and server evidence fields', async () => {
@@ -110,15 +110,14 @@ test('work creation uses authenticated ownership and server evidence fields', as
       return { rows: [] };
     },
   };
-  const app = createApp({
-    database,
-    config,
-    storage,
-    verifyToken: async () => ({ userId: 'cognito-user-123', email: 'artist@example.com' }),
-  });
+  const app = createApp({ database, config, storage });
   const response = await request(app, '/v1/works', {
     method: 'POST',
-    headers: { authorization: 'Bearer test', 'content-type': 'application/json' },
+    headers: {
+      'content-type': 'application/json',
+      'x-ms-client-principal-id': 'entra-user-123',
+      'x-ms-client-principal-name': 'artist@example.com',
+    },
     body: JSON.stringify({
       id: 'e4d3651d-c542-4e80-b14d-0bfb11e265f1',
       uploadId: '2e847dda-f11b-44e7-8215-2f8cf0470a2f',
@@ -130,7 +129,7 @@ test('work creation uses authenticated ownership and server evidence fields', as
 
   assert.equal(response.status, 201);
   const body = await response.json();
-  assert.equal(body.work.userId, 'cognito-user-123');
+  assert.equal(body.work.userId, 'entra-user-123');
   assert.equal(body.work.status, 'registered');
   assert.equal(body.work.hasStoredAudio, true);
   assert.match(body.work.registrationNumber, /^EZ-\d{4}-[A-F0-9]{12}$/);
@@ -153,13 +152,14 @@ test('private upload is signed and verified before use', async () => {
       return { rows: [] };
     },
   };
-  const app = createApp({
-    database, config, storage,
-    verifyToken: async () => ({ userId: 'cognito-user-123', email: 'artist@example.com' }),
-  });
+  const app = createApp({ database, config, storage });
   const created = await request(app, '/v1/uploads', {
     method: 'POST',
-    headers: { authorization: 'Bearer test', 'content-type': 'application/json' },
+    headers: {
+      'content-type': 'application/json',
+      'x-ms-client-principal-id': 'entra-user-123',
+      'x-ms-client-principal-name': 'artist@example.com',
+    },
     body: JSON.stringify({
       fileHash: 'A'.repeat(64), fileName: 'song.wav', fileSize: 2048, fileType: 'audio/wav',
     }),
@@ -168,7 +168,8 @@ test('private upload is signed and verified before use', async () => {
   const upload = await created.json();
   assert.equal(upload.uploadUrl, 'https://uploads.example/signed');
   const completed = await request(app, `/v1/uploads/${upload.uploadId}/complete`, {
-    method: 'POST', headers: { authorization: 'Bearer test' },
+    method: 'POST',
+    headers: { 'x-ms-client-principal-id': 'entra-user-123', 'x-ms-client-principal-name': 'artist@example.com' },
   });
   assert.equal(completed.status, 200);
   assert.equal((await completed.json()).status, 'ready');

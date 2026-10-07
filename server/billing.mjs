@@ -11,7 +11,7 @@ function period(subscription) {
   };
 }
 
-export function createStripeBilling(config, { accounts } = {}) {
+export function createStripeBilling(config) {
   const stripe = config.stripeSecretKey
     ? new Stripe(config.stripeSecretKey, { apiVersion: '2026-06-24.dahlia' })
     : null;
@@ -38,31 +38,11 @@ export function createStripeBilling(config, { accounts } = {}) {
     const acceptedTerms = checkoutSession?.consent?.terms_of_service === 'accepted';
     const acceptedAt = acceptedTerms ? new Date() : null;
 
-    let userId = subscription.metadata?.cognito_user_id
+    const userId = subscription.metadata?.ezcopyright_user_id
+      || (!customer?.deleted && customer?.metadata?.ezcopyright_user_id)
+      || subscription.metadata?.cognito_user_id
       || (!customer?.deleted && customer?.metadata?.cognito_user_id)
       || fallbackUserId;
-
-    if (!userId && email && accounts?.ensureUserByEmail) {
-      const account = await accounts.ensureUserByEmail(email);
-      userId = account.userId;
-
-      if (!customer?.deleted) {
-        await stripeApi.customers.update(customerId, {
-          metadata: {
-            ...(customer?.metadata || {}),
-            cognito_user_id: userId,
-            application: 'ez_copyright',
-          },
-        });
-      }
-      await stripeApi.subscriptions.update(subscription.id, {
-        metadata: {
-          ...(subscription.metadata || {}),
-          cognito_user_id: userId,
-          application: 'ez_copyright',
-        },
-      });
-    }
 
     if (!userId || !customerId) {
       throw new Error('Stripe subscription could not be linked to an EZ Copyright account.');
@@ -96,7 +76,7 @@ export function createStripeBilling(config, { accounts } = {}) {
       const metadata = {
         ...(customer?.metadata || {}),
         application: 'ez_copyright',
-        cognito_user_id: userId,
+        ezcopyright_user_id: userId,
       };
       if (businessName) metadata.business_name = businessName;
       if (acceptedTerms) metadata.policy_version = config.policyVersion;
@@ -132,7 +112,8 @@ export function createStripeBilling(config, { accounts } = {}) {
         ? await database.query('SELECT * FROM billing_customers WHERE user_id=$1', [userId])
         : { rows: [] };
       const metadata = { application: 'ez_copyright' };
-      if (userId) metadata.cognito_user_id = userId;
+      if (!userId) throw new Error('Sign in before starting membership checkout.');
+      metadata.ezcopyright_user_id = userId;
 
       const params = {
         mode: 'subscription',

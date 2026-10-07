@@ -1,4 +1,3 @@
-import { getAccessToken } from './auth';
 import { API_BASE_URL } from './api';
 
 export interface BillingStatus {
@@ -17,17 +16,11 @@ const MONTHLY_LIMIT = 5;
 async function apiRequest<T>(
   path: string,
   options: RequestInit = {},
-  authRequired = true,
 ): Promise<T> {
-  const token = await getAccessToken();
-  if (authRequired && !token) {
-    throw new Error('Please sign in again to continue.');
-  }
-
   const response = await fetch(`${API_BASE_URL}${path}`, {
     ...options,
+    credentials: 'same-origin',
     headers: {
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
       'Content-Type': 'application/json',
       ...(options.headers || {}),
     },
@@ -69,12 +62,11 @@ export async function getBillingStatus(): Promise<BillingStatus> {
 
 async function invokeBillingEndpoint(
   path: '/v1/billing/checkout' | '/v1/billing/portal',
-  authRequired = true,
 ): Promise<string> {
   const data = await apiRequest<{ url?: string }>(path, {
     method: 'POST',
     body: JSON.stringify({}),
-  }, authRequired);
+  });
 
   if (!data?.url) {
     throw new Error('Billing could not be started.');
@@ -83,11 +75,11 @@ async function invokeBillingEndpoint(
 }
 
 export async function startCheckout() {
-  const url = await invokeBillingEndpoint('/v1/billing/checkout', false);
+  const url = await invokeBillingEndpoint('/v1/billing/checkout');
   window.location.assign(url);
 }
 
 export async function openBillingPortal() {
-  const url = await invokeBillingEndpoint('/v1/billing/portal', true);
+  const url = await invokeBillingEndpoint('/v1/billing/portal');
   window.location.assign(url);
 }

@@ -1,7 +1,3 @@
-const DEFAULT_COGNITO_REGION = 'us-west-2';
-const DEFAULT_COGNITO_USER_POOL_ID = 'us-west-2_jJs1JIarh';
-const DEFAULT_COGNITO_CLIENT_ID = '6j3dpm8g95pa2uuevfuk206qdi';
-
 function parseOrigins(value, environment) {
   const configured = value
     .split(',')
@@ -16,9 +12,6 @@ function requiredProductionValues(environment) {
   const storageProvider = (environment.STORAGE_PROVIDER || (environment.AZURE_STORAGE_ACCOUNT ? 'azure' : 's3')).trim();
   const values = [
     ['DATABASE_URL', environment.DATABASE_URL],
-    ['COGNITO_REGION', environment.COGNITO_REGION],
-    ['COGNITO_USER_POOL_ID', environment.COGNITO_USER_POOL_ID],
-    ['COGNITO_CLIENT_ID', environment.COGNITO_CLIENT_ID],
     ['CORS_ALLOWED_ORIGINS', environment.CORS_ALLOWED_ORIGINS],
     ['APP_BASE_URL', environment.APP_BASE_URL],
     ['STRIPE_SECRET_KEY', environment.STRIPE_SECRET_KEY],
@@ -55,12 +48,9 @@ export function validateEnvironment(environment = process.env) {
 export function loadConfig(environment = process.env) {
   validateEnvironment(environment);
   const nodeEnvironment = environment.NODE_ENV?.trim() || 'development';
-  const region = environment.COGNITO_REGION?.trim() || DEFAULT_COGNITO_REGION;
-  const userPoolId = environment.COGNITO_USER_POOL_ID?.trim() || DEFAULT_COGNITO_USER_POOL_ID;
-  const clientId = environment.COGNITO_CLIENT_ID?.trim() || DEFAULT_COGNITO_CLIENT_ID;
   const databaseUrl = environment.DATABASE_URL?.trim() || '';
   const storageProvider = (environment.STORAGE_PROVIDER || (environment.AZURE_STORAGE_ACCOUNT ? 'azure' : 's3')).trim();
-  const s3Bucket = environment.S3_BUCKET?.trim() || '';
+  const awsRegion = environment.AWS_REGION?.trim() || 'us-west-2';
 
   return {
     nodeEnvironment,
@@ -69,15 +59,11 @@ export function loadConfig(environment = process.env) {
     databaseSsl: environment.DATABASE_SSL === 'false'
       ? false
       : !databaseUrl.includes('localhost') && !databaseUrl.includes('127.0.0.1'),
-    cognitoIssuer: `https://cognito-idp.${region}.amazonaws.com/${userPoolId}`,
-    cognitoRegion: region,
-    cognitoUserPoolId: userPoolId,
-    cognitoClientId: clientId,
     allowedOrigins: parseOrigins(environment.CORS_ALLOWED_ORIGINS || '', nodeEnvironment),
     policyVersion: environment.POLICY_VERSION?.trim() || '2026-08-13',
     storageProvider,
-    awsRegion: environment.AWS_REGION?.trim() || region,
-    s3Bucket,
+    awsRegion,
+    s3Bucket: environment.S3_BUCKET?.trim() || '',
     azureStorageAccount: environment.AZURE_STORAGE_ACCOUNT?.trim() || '',
     azureStorageContainer: environment.AZURE_STORAGE_CONTAINER?.trim() || 'private-audio',
     azureStorageAccountKey: environment.AZURE_STORAGE_ACCOUNT_KEY?.trim() || '',

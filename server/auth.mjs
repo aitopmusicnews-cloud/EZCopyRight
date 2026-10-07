@@ -1,33 +1,55 @@
-import { createRemoteJWKSet, jwtVerify } from 'jose';
+function decodePrincipal(value) {
+  if (!value) return null;
+  try {
+    return JSON.parse(Buffer.from(value, 'base64').toString('utf8'));
+  } catch {
+    return null;
+  }
+}
 
-export function createCognitoVerifier({ cognitoIssuer, cognitoClientId }) {
-  const keySet = createRemoteJWKSet(new URL(`${cognitoIssuer}/.well-known/jwks.json`));
+function claimValues(principal, names) {
+  const claims = Array.isArray(principal?.claims) ? principal.claims : [];
+  return claims
+    .filter((claim) => names.includes(claim?.typ) && typeof claim?.val === 'string')
+    .map((claim) => claim.val)
+    .filter(Boolean);
+}
 
-  return async function verifyCognitoToken(token) {
-    const { payload } = await jwtVerify(token, keySet, {
-      issuer: cognitoIssuer,
-      algorithms: ['RS256'],
-    });
+function firstClaim(principal, names) {
+  return claimValues(principal, names)[0] || null;
+}
 
-    const tokenUse = payload.token_use;
-    const tokenClientId = tokenUse === 'access' ? payload.client_id : payload.aud;
-    if (!['access', 'id'].includes(tokenUse) || tokenClientId !== cognitoClientId) {
-      throw new Error('The authentication token is not valid for this application.');
-    }
+export function readEasyAuthIdentity(request) {
+  const principal = decodePrincipal(request.get('x-ms-client-principal'));
+  const userId = request.get('x-ms-client-principal-id')
+    || firstClaim(principal, [
+      'sub',
+      'oid',
+      'http://schemas.microsoft.com/identity/claims/objectidentifier',
+      'http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier',
+    ]);
 
-    if (typeof payload.sub !== 'string' || !payload.sub) {
-      throw new Error('The authentication token does not identify a user.');
-    }
+  if (!userId) return null;
 
-    const groups = Array.isArray(payload['cognito:groups'])
-      ? payload['cognito:groups'].filter((group) => typeof group === 'string')
-      : [];
+  const email = request.get('x-ms-client-principal-name')
+    || firstClaim(principal, [
+      'email',
+      'emails',
+      'preferred_username',
+      'upn',
+      'http://schemas.xmlsoap.org/ws/2005/05/identity/claims/emailaddress',
+      'http://schemas.xmlsoap.org/ws/2005/05/identity/claims/name',
+    ]);
 
-    return {
-      userId: payload.sub,
-      email: typeof payload.email === 'string' ? payload.email : null,
-      tokenUse,
-      groups,
-    };
+  const groups = [
+    ...claimValues(principal, ['roles', 'role']),
+    ...claimValues(principal, ['groups']),
+  ];
+
+  return {
+    userId,
+    email,
+    groups: [...new Set(groups)],
+    provider: request.get('x-ms-client-principal-idp') || principal?.auth_typ || 'ezid',
   };
 }
