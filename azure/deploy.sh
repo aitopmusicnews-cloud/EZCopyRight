@@ -9,6 +9,7 @@ DATABASE_NAME="${AZURE_DATABASE_NAME:-ezcopyright}"
 DATABASE_ADMIN="${AZURE_DATABASE_ADMIN:-ezadmin}"
 STORAGE_CONTAINER="${AZURE_STORAGE_CONTAINER:-private-audio}"
 STRIPE_PRICE_ID="${STRIPE_PRICE_ID:-price_1UHO2UIgHJywqbkk3hepc7hg}"
+AUTH_PROVIDER="${AUTH_PROVIDER:-ezid}"
 
 command -v az >/dev/null 2>&1 || {
   echo "Azure CLI is required. Open Azure Cloud Shell and run this script there."
@@ -204,6 +205,7 @@ az containerapp create \
     "CORS_ALLOWED_ORIGINS=https://ezwaycopyrights.com" \
     "APP_BASE_URL=https://ezwaycopyrights.com" \
     "POLICY_VERSION=2026-08-13" \
+    "AUTH_PROVIDER=${AUTH_PROVIDER}" \
     "STRIPE_SECRET_KEY=secretref:stripe-secret-key" \
     "STRIPE_WEBHOOK_SECRET=secretref:stripe-webhook-secret" \
     "STRIPE_PRICE_ID=${STRIPE_PRICE_ID}" \

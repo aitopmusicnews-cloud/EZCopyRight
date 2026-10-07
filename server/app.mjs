@@ -196,7 +196,12 @@ export function createApp({
   });
 
   function isAgentAdmin(request) {
-    return Array.isArray(request.auth?.groups) && request.auth.groups.includes(config.agentAdminGroup);
+    const groupAllowed = Array.isArray(request.auth?.groups)
+      && request.auth.groups.includes(config.agentAdminGroup);
+    const userAllowed = Boolean(request.auth?.userId)
+      && Array.isArray(config.agentAdminUserIds)
+      && config.agentAdminUserIds.includes(request.auth.userId);
+    return groupAllowed || userAllowed;
   }
 
   const requireAgentAdmin = (request, response, next) => {
@@ -217,6 +222,10 @@ export function createApp({
 
   app.get('/health/live', (_request, response) => {
     response.json({ status: 'ok' });
+  });
+
+  app.get('/v1/auth/config', (_request, response) => {
+    response.json({ provider: config.authProvider });
   });
 
   app.get('/health/ready', asyncRoute(async (_request, response) => {
