@@ -1,4 +1,4 @@
-export type AuthMode = 'entra-external-id';
+export type AuthMode = 'external-oidc';
 
 export interface AuthUser {
   id: string;
@@ -26,7 +26,7 @@ function claimValue(identity: EasyAuthIdentity, names: string[]): string {
 }
 
 export function getAuthMode(): AuthMode {
-  return 'entra-external-id';
+  return 'external-oidc';
 }
 
 export async function getCurrentUser(): Promise<AuthUser | null> {
