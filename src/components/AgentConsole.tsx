@@ -38,14 +38,14 @@ const quickActions = [
     prompt: 'Check the EZCopyRight application logs for errors in the last 2 hours and explain anything important.',
   },
   {
-    label: 'AWS Costs',
+    label: 'Azure Costs',
     icon: CircleDollarSign,
-    prompt: 'Show me the AWS cost summary for the last 7 days and explain the biggest costs in plain language.',
+    prompt: 'Explain the Azure cost areas I should review for EZCopyRight over the last 7 days. Do not invent live cost figures if you cannot access Azure billing data.',
   },
   {
     label: 'Idle Resources',
     icon: CloudCog,
-    prompt: 'Check for obvious idle AWS resources that may be wasting money. Do not change or delete anything.',
+    prompt: 'Check for obvious idle Azure resources that may be wasting money. Do not change or delete anything.',
   },
 ];
 
@@ -58,7 +58,7 @@ export default function AgentConsole({ userEmail, onBack, onSignOut }: Props) {
     {
       id: 'welcome',
       role: 'agent',
-      text: 'I can check EZCopyRight health, logs, AWS costs, and idle resources. I can also prepare a production deployment, but I cannot start it until you explicitly approve it.',
+      text: 'I can help review EZCopyRight health, logs, Azure costs, configuration, billing issues, and deployment risks. Production changes still require your explicit approval.',
     },
   ]);
   const [input, setInput] = useState('');
@@ -112,7 +112,7 @@ export default function AgentConsole({ userEmail, onBack, onSignOut }: Props) {
               <Bot className="w-5 h-5 text-orange-400" />
             </div>
             <div className="min-w-0">
-              <p className="font-bold text-white truncate">EZCopyRight AWS Agent</p>
+              <p className="font-bold text-white truncate">EZCopyRight Azure Agent</p>
               <p className="text-xs text-emerald-400 flex items-center gap-1">
                 <ShieldCheck className="w-3.5 h-3.5" />
                 Admin-only · deployment protected
@@ -131,7 +131,7 @@ export default function AgentConsole({ userEmail, onBack, onSignOut }: Props) {
       <main className="max-w-6xl mx-auto px-4 py-8">
         <div className="mb-7">
           <h1 className="text-3xl sm:text-4xl font-bold mb-2" style={{ fontFamily: 'Playfair Display, serif' }}>
-            AWS Control Center
+            Azure Control Center
           </h1>
           <p className="text-white/50 max-w-3xl">
             Ask in normal language. Read-only checks run automatically. Production deployment always stops for your approval first.
@@ -170,7 +170,7 @@ export default function AgentConsole({ userEmail, onBack, onSignOut }: Props) {
             {busy && (
               <div className="flex items-center gap-2 text-sm text-white/45">
                 <Loader2 className="w-4 h-4 animate-spin" />
-                Checking AWS...
+                Checking Azure...
               </div>
             )}
           </div>
@@ -224,7 +224,7 @@ export default function AgentConsole({ userEmail, onBack, onSignOut }: Props) {
                   }
                 }}
                 rows={2}
-                placeholder="Ask: Is EZCopyRight healthy? Check Stripe errors. What is costing money?"
+                placeholder="Ask: Is EZCopyRight healthy? Check Stripe errors. What should I review in Azure?"
                 className="flex-1 resize-none rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white placeholder:text-white/30 focus:outline-none focus:ring-2 focus:ring-orange-500/40"
               />
               <button
