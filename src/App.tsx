@@ -8,18 +8,18 @@ import LegalPage from './components/LegalPage';
 import AgentConsole from './components/AgentConsole';
 import type { LegalPageId, MusicalWork, Page } from './types';
 import {
-  completeNewPassword,
-  confirmSignUp,
   getCurrentUser,
   signIn,
   signOut,
-  signUp,
   subscribeToAuthChanges,
   type AuthUser,
 } from './lib/auth';
 import { createWork, getWorkAudioUrl, listWorks, removeWork } from './lib/worksRepository';
 import { getBillingStatus, openBillingPortal, startCheckout, type BillingStatus } from './lib/billing';
 import { getAgentAccess } from './lib/agent';
+
+const AUTH_TARGET_KEY = 'ezcopyright_auth_target';
+const AFTER_AUTH_KEY = 'ezcopyright_after_auth';
 
 const legalPathByPage: Record<LegalPageId, string> = {
   terms: '/terms',
@@ -95,6 +95,26 @@ export default function App() {
   }, []);
 
   useEffect(() => {
+    if (!authReady || !authUser) return;
+
+    const target = sessionStorage.getItem(AUTH_TARGET_KEY);
+    const afterAuth = sessionStorage.getItem(AFTER_AUTH_KEY);
+    sessionStorage.removeItem(AUTH_TARGET_KEY);
+    sessionStorage.removeItem(AFTER_AUTH_KEY);
+
+    if (afterAuth === 'checkout') {
+      void startCheckout().catch((error) => {
+        setAppError(error instanceof Error ? error.message : 'Checkout could not be opened.');
+      });
+      return;
+    }
+
+    if (target === 'register' || target === 'dashboard') {
+      setPage(target);
+    }
+  }, [authReady, authUser]);
+
+  useEffect(() => {
     if (!authReady || !postCheckout) return;
 
     const cleanUrl = window.location.pathname;
@@ -102,11 +122,11 @@ export default function App() {
 
     if (authUser) {
       setPostCheckout(false);
+      setPage('dashboard');
       return;
     }
 
-    setAuthTargetPage('dashboard');
-    setPage('auth');
+    beginAuth('dashboard');
   }, [authReady, authUser, postCheckout]);
 
   useEffect(() => {
@@ -181,11 +201,16 @@ export default function App() {
     };
   }, [authUser]);
 
+  const beginAuth = (target: 'register' | 'dashboard', afterAuth?: 'checkout') => {
+    setAuthTargetPage(target);
+    if (afterAuth) sessionStorage.setItem(AFTER_AUTH_KEY, afterAuth);
+    setPage('auth');
+  };
+
   const navigateProtected = (target: 'register' | 'dashboard') => {
     setAppError('');
     if (!authUser) {
-      setAuthTargetPage(target);
-      setPage('auth');
+      beginAuth(target);
       return;
     }
     if (target === 'register' && billing && !billing.active) {
@@ -197,8 +222,7 @@ export default function App() {
 
   const handleRegister = async (work: MusicalWork, file: File) => {
     if (!authUser) {
-      setAuthTargetPage('register');
-      setPage('auth');
+      beginAuth('register');
       return;
     }
 
@@ -232,53 +256,23 @@ export default function App() {
     }
   };
 
-  const handleAuthSuccess = (user: AuthUser) => {
-    setAuthUser(user);
-    setPostCheckout(false);
-    setPage(authTargetPage);
-  };
-
-  const handleSignIn = async (email: string, password: string) => {
-    const result = await signIn(email, password);
-    if (result.user) handleAuthSuccess(result.user);
-    return result.user
-      ? { newPasswordRequired: false as const }
-      : {
-          newPasswordRequired: true as const,
-          session: result.session,
-          username: result.username,
-        };
-  };
-
-  const handleCompleteNewPassword = async (
-    email: string,
-    username: string,
-    newPassword: string,
-    session: string,
-  ) => {
-    const user = await completeNewPassword(email, username, newPassword, session);
-    handleAuthSuccess(user);
-  };
-
-  const handleSignUp = async (email: string, password: string) => {
-    const result = await signUp(email, password);
-    if (result.user) {
-      handleAuthSuccess(result.user);
+  const handleSubscribe = () => {
+    setAppError('');
+    if (!authUser) {
+      beginAuth('dashboard', 'checkout');
+      return;
     }
-    return { confirmationRequired: result.confirmationRequired };
+    void startCheckout().catch((error) => {
+      setAppError(error instanceof Error ? error.message : 'Checkout could not be opened.');
+    });
   };
 
-  const handleConfirmSignUp = async (email: string, password: string, confirmationCode: string) => {
-    const user = await confirmSignUp(email, password, confirmationCode);
-    handleAuthSuccess(user);
-  };
 
   const handleSignOut = async () => {
     try {
       await signOut();
     } catch {
-      // Sign-out should always return the user to the landing page, even if the
-      // remote revoke fails. Local session storage is cleared inside signOut().
+      // Keep local UI cleanup as a fallback if the auth redirect is interrupted.
     }
     setAuthUser(null);
     setSelectedWork(null);
@@ -324,18 +318,13 @@ export default function App() {
           {errorBanner}
           <LandingHero
             onNavigate={navigateProtected}
-            onSubscribe={() => {
-              void startCheckout().catch((error) => setAppError(error instanceof Error ? error.message : 'Checkout could not be opened.'));
-            }}
+            onSubscribe={handleSubscribe}
             hasActiveMembership={Boolean(billing?.active)}
             workCount={works.length}
             isAuthenticated={Boolean(authUser)}
             userEmail={authUser?.email ?? null}
-            authModeLabel="AWS Cognito secure cloud"
-            onAuthAction={() => {
-              setAuthTargetPage('dashboard');
-              setPage('auth');
-            }}
+            authModeLabel="Microsoft Entra secure sign-in"
+            onAuthAction={() => beginAuth('dashboard')}
             onSignOut={() => {
               void handleSignOut();
             }}
@@ -350,11 +339,11 @@ export default function App() {
         <AuthScreen
           targetLabel={authTargetPage === 'register' ? 'new registrations' : 'your dashboard'}
           onBack={() => setPage('landing')}
-          onSignIn={handleSignIn}
-          onCompleteNewPassword={handleCompleteNewPassword}
+          onContinue={() => {
+            sessionStorage.setItem(AUTH_TARGET_KEY, authTargetPage);
+            void signIn('/');
+          }}
           postCheckout={postCheckout}
-          onSignUp={handleSignUp}
-          onConfirmSignUp={handleConfirmSignUp}
           onLegalNavigate={navigateLegal}
         />
         </>
