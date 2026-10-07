@@ -5,7 +5,7 @@ EZ Copyright creates private evidence records for original musical works with lo
 ## Production architecture
 
 - **Hosting:** Azure Container Apps, serving the React frontend and Express API from one container
-- **Authentication:** Microsoft Entra External ID through Azure Container Apps Authentication (Easy Auth), custom OIDC provider `ezid`
+- **Authentication:** Clerk customer accounts through Azure Container Apps Authentication (Easy Auth) using a custom OIDC provider named `clerk`
 - **Database:** Azure Database for PostgreSQL Flexible Server
 - **Private audio storage:** Azure Blob Storage
 - **Billing:** Stripe subscriptions and webhooks
@@ -15,11 +15,15 @@ Amazon Cognito is no longer part of the application authentication path.
 
 ## Authentication flow
 
-The public landing page is allowed anonymously. Protected actions redirect customers to:
+The public landing page is allowed anonymously. The application reads the configured provider alias from `/v1/auth/config`. In production that alias should be `clerk`, so protected actions redirect customers to:
 
-`/.auth/login/ezid`
+`/.auth/login/clerk`
 
-After Microsoft Entra External ID signs the customer in, Azure Container Apps establishes an authenticated session cookie. The frontend reads the signed-in identity from `/.auth/me`.
+Clerk authenticates the customer using the sign-in methods enabled for the Clerk application, and Azure Container Apps completes the OIDC callback at:
+
+`https://ezwaycopyrights.com/.auth/login/clerk/callback`
+
+Azure Container Apps then establishes the authenticated session cookie. The frontend reads the signed-in identity from `/.auth/me`.
 
 For API requests, Container Apps validates the session before the request reaches Express and injects trusted identity headers such as `X-MS-CLIENT-PRINCIPAL-ID` and `X-MS-CLIENT-PRINCIPAL-NAME`. The API uses those headers as the owner identity for works, uploads, billing, certificates, and audit records.
 
@@ -56,10 +60,15 @@ The Container App authentication configuration must keep:
 
 - Authentication platform: enabled
 - Unauthenticated requests: `AllowAnonymous`
-- Custom OpenID Connect provider: `ezid`
-- Client ID: the EZCopyRight Web Entra application client ID
-- Client secret: stored as Container App secret `ezid-authentication-secret`
-- Callback URL: `https://ezwaycopyrights.com/.auth/login/ezid/callback`
+- Custom OpenID Connect provider: `clerk`
+- OIDC scopes: `openid profile email`
+- Client ID: the Clerk OAuth application client ID
+- Client secret: stored only as a Container App secret, for example `clerk-authentication-secret`
+- Metadata/discovery URL: the discovery URL shown by the Clerk OAuth application
+- Callback URL: `https://ezwaycopyrights.com/.auth/login/clerk/callback`
+- Runtime environment: `AUTH_PROVIDER=clerk`
+
+Keep the old `ezid` provider in place during cutover. Create and test `clerk` first, switch `AUTH_PROVIDER` to `clerk`, verify sign-in and billing, and only then remove `ezid`.
 
 The public health endpoints are `/health/live` and `/health/ready`. Depending on Easy Auth policy, an external unauthenticated health request can be intercepted before Express; use the Container App revision/replica health as the infrastructure source of truth if that policy is tightened.
 
@@ -69,7 +78,7 @@ Membership checkout requires the customer to be signed in first. The Stripe Chec
 
 ## Registration flow
 
-1. Customer signs in through Microsoft Entra External ID.
+1. Customer signs in through Clerk.
 2. Browser hashes the selected audio file locally.
 3. API verifies the authenticated customer's active subscription and monthly allowance.
 4. API creates a private Azure Blob upload URL.
@@ -82,4 +91,4 @@ EZ Copyright provides evidence and recordkeeping. It is not a submission to the 
 
 ## Standalone operations agent
 
-The separate operations agent remains an optional owner/admin service. It is not enabled merely by deploying the customer application, and customer authentication no longer depends on Cognito.
+The separate operations agent remains an optional owner/admin service. It is not enabled merely by deploying the customer application. Owner access can be granted either through an identity role/group claim matching `AGENT_ADMIN_GROUP` or by placing the Clerk/OIDC subject ID in `AGENT_ADMIN_USER_IDS`. Customer authentication no longer depends on Cognito or Entra.
