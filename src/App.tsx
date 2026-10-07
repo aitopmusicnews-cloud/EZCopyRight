@@ -3,7 +3,6 @@ import LandingHero from './components/LandingHero';
 import RegisterForm from './components/RegisterForm';
 import Certificate from './components/Certificate';
 import Dashboard from './components/Dashboard';
-import AuthScreen from './components/AuthScreen';
 import LegalPage from './components/LegalPage';
 import AgentConsole from './components/AgentConsole';
 import type { LegalPageId, MusicalWork, Page } from './types';
@@ -203,8 +202,9 @@ export default function App() {
 
   const beginAuth = (target: 'register' | 'dashboard', afterAuth?: 'checkout') => {
     setAuthTargetPage(target);
+    sessionStorage.setItem(AUTH_TARGET_KEY, target);
     if (afterAuth) sessionStorage.setItem(AFTER_AUTH_KEY, afterAuth);
-    setPage('auth');
+    void signIn('/');
   };
 
   const navigateProtected = (target: 'register' | 'dashboard') => {
@@ -330,22 +330,6 @@ export default function App() {
             }}
             onLegalNavigate={navigateLegal}
           />
-        </>
-      );
-    case 'auth':
-      return (
-        <>
-        {errorBanner}
-        <AuthScreen
-          targetLabel={authTargetPage === 'register' ? 'new registrations' : 'your dashboard'}
-          onBack={() => setPage('landing')}
-          onContinue={() => {
-            sessionStorage.setItem(AUTH_TARGET_KEY, authTargetPage);
-            void signIn('/');
-          }}
-          postCheckout={postCheckout}
-          onLegalNavigate={navigateLegal}
-        />
         </>
       );
     case 'register':
