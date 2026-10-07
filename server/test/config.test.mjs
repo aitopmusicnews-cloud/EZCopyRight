@@ -48,3 +48,36 @@ test('production config accepts a complete environment', () => {
   assert.equal('cognitoIssuer' in config, false);
   assert.equal('cognitoClientId' in config, false);
 });
+
+
+test('production Clerk mode requires public Clerk configuration', () => {
+  const environment = {
+    NODE_ENV: 'production',
+    AUTH_MODE: 'clerk',
+    DATABASE_URL: 'postgres://example.test/database',
+    S3_BUCKET: 'ezcopyright-private',
+    CORS_ALLOWED_ORIGINS: 'https://ezwaycopyrights.com',
+    APP_BASE_URL: 'https://ezwaycopyrights.com',
+    STRIPE_SECRET_KEY: 'test-secret',
+    STRIPE_WEBHOOK_SECRET: 'test-webhook-secret',
+    STRIPE_PRICE_ID: 'price_test',
+  };
+
+  assert.throws(
+    () => validateEnvironment(environment),
+    (error) => {
+      assert.match(error.message, /CLERK_PUBLISHABLE_KEY/);
+      assert.match(error.message, /CLERK_FRONTEND_API/);
+      return true;
+    },
+  );
+
+  const config = loadConfig({
+    ...environment,
+    CLERK_PUBLISHABLE_KEY: 'pk_live_example',
+    CLERK_FRONTEND_API: 'https://clerk.ezwaycopyrights.com',
+  });
+  assert.equal(config.authMode, 'clerk');
+  assert.equal(config.clerkJwksUrl, 'https://clerk.ezwaycopyrights.com/.well-known/jwks.json');
+  assert.deepEqual(config.clerkAuthorizedParties, ['https://ezwaycopyrights.com']);
+});
