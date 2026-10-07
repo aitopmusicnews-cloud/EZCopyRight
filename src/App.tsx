@@ -41,7 +41,6 @@ export default function App() {
   const [authReady, setAuthReady] = useState(false);
   const [worksLoading, setWorksLoading] = useState(false);
   const [appError, setAppError] = useState('');
-  const [authTargetPage, setAuthTargetPage] = useState<'register' | 'dashboard'>('register');
   const [billing, setBilling] = useState<BillingStatus | null>(null);
   const [agentAllowed, setAgentAllowed] = useState(false);
   const [postCheckout, setPostCheckout] = useState(
@@ -201,7 +200,6 @@ export default function App() {
   }, [authUser]);
 
   const beginAuth = (target: 'register' | 'dashboard', afterAuth?: 'checkout') => {
-    setAuthTargetPage(target);
     sessionStorage.setItem(AUTH_TARGET_KEY, target);
     if (afterAuth) sessionStorage.setItem(AFTER_AUTH_KEY, afterAuth);
     void signIn('/');
