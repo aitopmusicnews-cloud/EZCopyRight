@@ -1,102 +1,22 @@
-import { useState } from 'react';
-import { ArrowLeft, LockKeyhole, Mail, MailCheck } from 'lucide-react';
+import { ArrowLeft, LockKeyhole, ShieldCheck } from 'lucide-react';
 import type { LegalPageId } from '../types';
 import LegalFooter from './LegalFooter';
 
 interface Props {
   targetLabel: string;
   onBack: () => void;
-  onSignIn: (email: string, password: string) => Promise<
-    | { newPasswordRequired: false }
-    | { newPasswordRequired: true; session: string; username: string }
-  >;
-  onCompleteNewPassword: (email: string, username: string, newPassword: string, session: string) => Promise<void>;
+  onContinue: () => void;
   postCheckout?: boolean;
-  onSignUp: (email: string, password: string) => Promise<{ confirmationRequired: boolean }>;
-  onConfirmSignUp: (email: string, password: string, confirmationCode: string) => Promise<void>;
   onLegalNavigate: (page: LegalPageId) => void;
 }
 
 export default function AuthScreen({
   targetLabel,
   onBack,
-  onSignIn,
-  onCompleteNewPassword,
+  onContinue,
   postCheckout = false,
-  onSignUp,
-  onConfirmSignUp,
   onLegalNavigate,
 }: Props) {
-  const [isSignUp, setIsSignUp] = useState(false);
-  const [awaitingConfirmation, setAwaitingConfirmation] = useState(false);
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [confirmationCode, setConfirmationCode] = useState('');
-  const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState('');
-  const [acceptedPolicies, setAcceptedPolicies] = useState(false);
-  const [newPasswordSession, setNewPasswordSession] = useState('');
-  const [challengeUsername, setChallengeUsername] = useState('');
-  const [newPassword, setNewPassword] = useState('');
-
-  const authModeLabel = 'AWS Cognito secure cloud';
-
-  const switchMode = () => {
-    setIsSignUp((value) => !value);
-    setAwaitingConfirmation(false);
-    setConfirmationCode('');
-    setError('');
-    setAcceptedPolicies(false);
-    setNewPasswordSession('');
-    setChallengeUsername('');
-    setNewPassword('');
-  };
-
-  const handleSubmit = async (event: React.FormEvent) => {
-    event.preventDefault();
-    setSubmitting(true);
-    setError('');
-
-    try {
-      if (newPasswordSession) {
-        await onCompleteNewPassword(email, challengeUsername || email, newPassword, newPasswordSession);
-        return;
-      }
-
-      if (awaitingConfirmation) {
-        await onConfirmSignUp(email, password, confirmationCode);
-        return;
-      }
-
-      if (isSignUp) {
-        if (!acceptedPolicies) {
-          setError('You must agree to the Terms of Service and Privacy Policy to create an account.');
-          return;
-        }
-        const result = await onSignUp(email, password);
-        if (result.confirmationRequired) {
-          setAwaitingConfirmation(true);
-        }
-      } else {
-        const result = await onSignIn(email, password);
-        if (result.newPasswordRequired) {
-          setNewPasswordSession(result.session);
-          setChallengeUsername(result.username);
-          setPassword('');
-        }
-      }
-    } catch (err) {
-      const message = err instanceof Error ? err.message : 'Authentication failed.';
-      if (!awaitingConfirmation && message.toLowerCase().includes('confirmation code')) {
-        setIsSignUp(true);
-        setAwaitingConfirmation(true);
-      }
-      setError(message);
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
   return (
     <div className="min-h-screen bg-gradient-to-br from-neutral-950 via-stone-950 to-neutral-950">
       <div className="border-b border-white/10 bg-neutral-950/80 backdrop-blur-xl sticky top-0 z-50">
@@ -111,221 +31,35 @@ export default function AuthScreen({
         </div>
       </div>
 
-      <div className="max-w-4xl mx-auto px-4 py-10 sm:py-16">
-        <div className="grid lg:grid-cols-[1.1fr_0.9fr] gap-8 items-start">
-          <div className="rounded-3xl border border-white/10 bg-white/5 p-8">
-            <div className="inline-flex items-center gap-2 rounded-full border border-orange-500/20 bg-orange-500/10 px-3 py-1 text-sm text-orange-200 mb-6">
-              <LockKeyhole className="w-4 h-4" />
-              {postCheckout ? 'Membership payment received' : `Sign in required for ${targetLabel.toLowerCase()}`}
-            </div>
-            <h1 className="text-4xl font-bold text-white mb-4" style={{ fontFamily: 'Playfair Display, serif' }}>
-              {postCheckout ? 'Finish setting up your membership' : 'Secure your Hub records'}
-            </h1>
-            <p className="text-white/60 leading-relaxed mb-6">
-              {postCheckout
-                ? 'Your payment is complete. EZ Copyright creates or links your secure account using the email from Stripe. New members receive a Cognito email with a temporary password; use it here, then choose your permanent password.'
-                : 'Accounts tie your evidence records to a specific identity instead of leaving everything in a shared browser profile. Sign-in is managed through a secure hosted account service so your credentials and session are protected.'}
-            </p>
-            <div className="space-y-3 text-sm text-white/65">
-              <div className="rounded-2xl border border-white/10 bg-black/20 p-4">Authenticated access reduces casual tampering and cross-user mixing.</div>
-              <div className="rounded-2xl border border-white/10 bg-black/20 p-4">Managed accounts create a stronger foundation for cloud-backed database and file storage.</div>
-              <div className="rounded-2xl border border-white/10 bg-black/20 p-4">You still need formal copyright registration for stronger legal protection.</div>
-            </div>
+      <div className="max-w-3xl mx-auto px-4 py-12 sm:py-20">
+        <div className="rounded-3xl border border-white/10 bg-white/5 p-8 sm:p-10 text-center">
+          <div className="w-14 h-14 rounded-2xl bg-orange-500/10 border border-orange-500/20 flex items-center justify-center mx-auto mb-6">
+            <LockKeyhole className="w-7 h-7 text-orange-300" />
           </div>
-
-          <div className="rounded-3xl border border-white/10 bg-neutral-900/80 p-8 shadow-2xl shadow-black/30">
-            <div className="flex items-center justify-between mb-6">
-              <div>
-                <h2 className="text-2xl font-bold text-white">
-                  {newPasswordSession
-                    ? 'Choose your password'
-                    : awaitingConfirmation
-                      ? 'Confirm your email'
-                      : isSignUp
-                        ? 'Create account'
-                        : postCheckout
-                          ? 'Access your membership'
-                          : 'Sign in'}
-                </h2>
-                <p className="text-sm text-white/45 mt-1">Mode: {authModeLabel}</p>
-              </div>
-              {!awaitingConfirmation && !newPasswordSession && !postCheckout && (
-                <button
-                  type="button"
-                  onClick={switchMode}
-                  className="text-sm text-orange-300 hover:text-orange-200 cursor-pointer"
-                >
-                  {isSignUp ? 'Have an account?' : 'Need an account?'}
-                </button>
-              )}
-            </div>
-
-            {awaitingConfirmation && (
-              <div className="mb-6 rounded-2xl border border-emerald-500/20 bg-emerald-500/10 p-4 text-sm text-white/75 flex gap-3">
-                <MailCheck className="w-5 h-5 text-emerald-300 flex-shrink-0 mt-0.5" />
-                <span>Enter the confirmation code sent to <strong>{email}</strong>.</span>
-              </div>
-            )}
-
-            <form onSubmit={handleSubmit} className="space-y-4">
-              {postCheckout && !awaitingConfirmation && !newPasswordSession && (
-                <div className="rounded-2xl border border-orange-500/20 bg-orange-500/10 p-4 text-sm text-white/75">
-                  New EZ Copyright member? Check the email address you used at Stripe for your temporary password, then sign in below. Already had an account? Use your normal password.
-                </div>
-              )}
-
-              {!awaitingConfirmation && !newPasswordSession && (
-                <>
-                  <label className="block">
-                    <span className="block text-sm text-white/70 mb-2">Email</span>
-                    <div className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/5 px-4 py-3">
-                      <Mail className="w-4 h-4 text-white/35" />
-                      <input
-                        type="email"
-                        value={email}
-                        onChange={(event) => setEmail(event.target.value)}
-                        placeholder="you@example.com"
-                        className="w-full bg-transparent text-white placeholder:text-white/25 focus:outline-none"
-                        required
-                      />
-                    </div>
-                  </label>
-
-                  <label className="block">
-                    <span className="block text-sm text-white/70 mb-2">Password</span>
-                    <div className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/5 px-4 py-3">
-                      <LockKeyhole className="w-4 h-4 text-white/35" />
-                      <input
-                        type="password"
-                        value={password}
-                        onChange={(event) => setPassword(event.target.value)}
-                        placeholder="Minimum 8 characters"
-                        className="w-full bg-transparent text-white placeholder:text-white/25 focus:outline-none"
-                        minLength={8}
-                        required
-                      />
-                    </div>
-                  </label>
-                </>
-              )}
-
-              {newPasswordSession && (
-                <>
-                  <div className="rounded-2xl border border-emerald-500/20 bg-emerald-500/10 p-4 text-sm text-white/75">
-                    Temporary password accepted. Choose the permanent password you want to use for EZ Copyright.
-                  </div>
-                  <label className="block">
-                    <span className="block text-sm text-white/70 mb-2">New permanent password</span>
-                    <div className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/5 px-4 py-3">
-                      <LockKeyhole className="w-4 h-4 text-white/35" />
-                      <input
-                        type="password"
-                        value={newPassword}
-                        onChange={(event) => setNewPassword(event.target.value)}
-                        placeholder="8+ chars, upper/lowercase, number, symbol"
-                        className="w-full bg-transparent text-white placeholder:text-white/25 focus:outline-none"
-                        minLength={8}
-                        required
-                        autoFocus
-                      />
-                    </div>
-                  </label>
-                </>
-              )}
-
-              {awaitingConfirmation && (
-                <label className="block">
-                  <span className="block text-sm text-white/70 mb-2">Confirmation code</span>
-                  <div className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/5 px-4 py-3">
-                    <MailCheck className="w-4 h-4 text-white/35" />
-                    <input
-                      type="text"
-                      inputMode="numeric"
-                      autoComplete="one-time-code"
-                      value={confirmationCode}
-                      onChange={(event) => setConfirmationCode(event.target.value)}
-                      placeholder="Enter the code from your email"
-                      className="w-full bg-transparent text-white placeholder:text-white/25 focus:outline-none tracking-widest"
-                      required
-                      autoFocus
-                    />
-                  </div>
-                </label>
-              )}
-
-              {!awaitingConfirmation && isSignUp && (
-                <label className="flex items-start gap-3 rounded-2xl border border-white/10 bg-white/[0.03] p-4 text-sm text-white/60">
-                  <input
-                    type="checkbox"
-                    checked={acceptedPolicies}
-                    onChange={(event) => setAcceptedPolicies(event.target.checked)}
-                    className="mt-1 h-4 w-4 accent-orange-500"
-                    required
-                  />
-                  <span>
-                    I agree to the{' '}
-                    <button
-                      type="button"
-                      onClick={() => onLegalNavigate('terms')}
-                      className="cursor-pointer text-orange-300 hover:text-orange-200"
-                    >
-                      Terms of Service
-                    </button>{' '}
-                    and acknowledge the{' '}
-                    <button
-                      type="button"
-                      onClick={() => onLegalNavigate('privacy')}
-                      className="cursor-pointer text-orange-300 hover:text-orange-200"
-                    >
-                      Privacy Policy
-                    </button>
-                    .
-                  </span>
-                </label>
-              )}
-
-              {error && (
-                <div className="rounded-2xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-200">
-                  {error}
-                </div>
-              )}
-
-              <button
-                type="submit"
-                disabled={submitting}
-                className="w-full rounded-2xl bg-gradient-to-r from-orange-600 to-amber-600 px-5 py-3.5 text-white font-semibold transition hover:from-orange-500 hover:to-amber-500 disabled:opacity-60 cursor-pointer"
-              >
-                {submitting
-                  ? 'Please wait...'
-                  : newPasswordSession
-                    ? 'Set password and continue'
-                    : awaitingConfirmation
-                      ? 'Confirm and sign in'
-                      : isSignUp
-                        ? 'Create account'
-                        : postCheckout
-                          ? 'Continue to my membership'
-                          : 'Sign in'}
-              </button>
-
-              {awaitingConfirmation && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setAwaitingConfirmation(false);
-                    setConfirmationCode('');
-                    setError('');
-                  }}
-                  className="w-full text-sm text-white/50 hover:text-white/75 cursor-pointer"
-                >
-                  Use a different email
-                </button>
-              )}
-            </form>
+          <div className="inline-flex items-center gap-2 rounded-full border border-orange-500/20 bg-orange-500/10 px-3 py-1 text-sm text-orange-200 mb-5">
+            <ShieldCheck className="w-4 h-4" />
+            Microsoft Entra External ID
           </div>
+          <h1 className="text-4xl font-bold text-white mb-4" style={{ fontFamily: 'Playfair Display, serif' }}>
+            {postCheckout ? 'Access your membership' : 'Secure account sign-in'}
+          </h1>
+          <p className="text-white/60 leading-relaxed max-w-xl mx-auto mb-8">
+            Continue to the secure EZ Way Copyrights customer sign-in to access {targetLabel.toLowerCase()}.
+            Your password and sign-in verification are handled by Microsoft Entra External ID.
+          </p>
+          <button
+            onClick={onContinue}
+            className="w-full sm:w-auto px-8 py-4 rounded-2xl bg-orange-500 hover:bg-orange-400 text-neutral-950 font-bold transition cursor-pointer"
+          >
+            Continue to secure sign-in
+          </button>
+          <p className="text-xs text-white/40 mt-5">
+            By creating or using an account, you agree to the Terms of Service and acknowledge the Privacy Policy.
+          </p>
         </div>
+
+        <LegalFooter onNavigate={onLegalNavigate} />
       </div>
-      <LegalFooter onNavigate={onLegalNavigate} />
     </div>
   );
 }
