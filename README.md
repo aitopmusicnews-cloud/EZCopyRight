@@ -5,7 +5,7 @@ EZ Copyright creates private evidence records for original musical works with lo
 ## Production architecture
 
 - **Hosting:** Azure Container Apps, serving the React frontend and Express API from one container
-- **Authentication:** Clerk customer accounts through Azure Container Apps Authentication (Easy Auth) using a custom OIDC provider named `clerk`
+- **Authentication:** Clerk directly in the React frontend and Express API; Azure Container Apps only hosts the application
 - **Database:** Azure Database for PostgreSQL Flexible Server
 - **Private audio storage:** Azure Blob Storage
 - **Billing:** Stripe subscriptions and webhooks
@@ -15,19 +15,18 @@ Amazon Cognito is no longer part of the application authentication path.
 
 ## Authentication flow
 
-The public landing page is allowed anonymously. The application reads the configured provider alias from `/v1/auth/config`. In production that alias should be `clerk`, so protected actions redirect customers to:
+EZCopyRight supports a staged authentication cutover controlled by `AUTH_MODE`.
 
-`/.auth/login/clerk`
+- `AUTH_MODE=easy-auth` keeps the existing Azure Container Apps Authentication provider (`ezid`) active for rollback.
+- `AUTH_MODE=clerk` uses Clerk directly and no longer depends on Entra/Easy Auth for customer identity.
 
-Clerk authenticates the customer using the sign-in methods enabled for the Clerk application, and Azure Container Apps completes the OIDC callback at:
+In Clerk mode, the frontend loads Clerk from the production Frontend API at `https://clerk.ezwaycopyrights.com`. Clerk stores the browser session, and same-origin API requests include the Clerk `__session` cookie automatically.
 
-`https://ezwaycopyrights.com/.auth/login/clerk/callback`
+The Express API validates each Clerk session JWT against the production Clerk JWKS endpoint and checks the token's authorized-party claim against `https://ezwaycopyrights.com`. The verified Clerk `sub` becomes the EZCopyright customer ID used for works, uploads, billing, certificates, audit events, and admin-agent authorization.
 
-Azure Container Apps then establishes the authenticated session cookie. The frontend reads the signed-in identity from `/.auth/me`.
+The browser never supplies a user ID as ownership proof. The API derives ownership only from the verified authentication session.
 
-For API requests, Container Apps validates the session before the request reaches Express and injects trusted identity headers such as `X-MS-CLIENT-PRINCIPAL-ID` and `X-MS-CLIENT-PRINCIPAL-NAME`. The API uses those headers as the owner identity for works, uploads, billing, certificates, and audit records.
-
-Do not accept a browser-supplied user ID as ownership evidence.
+During cutover, keep Azure Easy Auth enabled with anonymous requests allowed until Clerk has been tested. After Clerk sign-in, Stripe checkout, billing portal, uploads, certificates, downloads, and the agent are verified, Azure Easy Auth can be disabled and the old `ezid` provider removed.
 
 ## Local development
 
@@ -56,21 +55,19 @@ npm run build
 
 The production container is built from `main` and deployed to the `ezcopyright` Container App in `ezcopyright-prod-rg`.
 
-The Container App authentication configuration must keep:
+For the safe transition, deploy with:
 
-- Authentication platform: enabled
-- Unauthenticated requests: `AllowAnonymous`
-- Custom OpenID Connect provider: `clerk`
-- OIDC scopes: `openid profile email`
-- Client ID: the Clerk OAuth application client ID
-- Client secret: stored only as a Container App secret, for example `clerk-authentication-secret`
-- Metadata/discovery URL: the discovery URL shown by the Clerk OAuth application
-- Callback URL: `https://ezwaycopyrights.com/.auth/login/clerk/callback`
-- Runtime environment: `AUTH_PROVIDER=clerk`
+- `AUTH_MODE=easy-auth`
+- `AUTH_PROVIDER=ezid`
+- `CLERK_PUBLISHABLE_KEY` set to the production Clerk `pk_live_...` value
+- `CLERK_FRONTEND_API=https://clerk.ezwaycopyrights.com`
+- `CLERK_AUTHORIZED_PARTIES=https://ezwaycopyrights.com`
 
-Keep the old `ezid` provider in place during cutover. Create and test `clerk` first, switch `AUTH_PROVIDER` to `clerk`, verify sign-in and billing, and only then remove `ezid`.
+After the new build is live, switch only `AUTH_MODE` to `clerk`. This lets the same revision start using Clerk immediately without rebuilding the frontend.
 
-The public health endpoints are `/health/live` and `/health/ready`. Depending on Easy Auth policy, an external unauthenticated health request can be intercepted before Express; use the Container App revision/replica health as the infrastructure source of truth if that policy is tightened.
+The public health endpoints are `/health/live` and `/health/ready`.
+
+Clerk's frontend resources require the CSP allowances configured in `server/app.mjs` for the production Frontend API, Clerk protection endpoints, image host, workers, frames, and Clerk's runtime inline styles.
 
 ## Billing flow
 
@@ -78,7 +75,7 @@ Membership checkout requires the customer to be signed in first. The Stripe Chec
 
 ## Registration flow
 
-1. Customer signs in through Clerk.
+1. Customer signs in through Clerk directly on EZCopyRight.
 2. Browser hashes the selected audio file locally.
 3. API verifies the authenticated customer's active subscription and monthly allowance.
 4. API creates a private Azure Blob upload URL.
@@ -91,4 +88,4 @@ EZ Copyright provides evidence and recordkeeping. It is not a submission to the 
 
 ## Standalone operations agent
 
-The separate operations agent remains an optional owner/admin service. It is not enabled merely by deploying the customer application. Owner access can be granted either through an identity role/group claim matching `AGENT_ADMIN_GROUP` or by placing the Clerk/OIDC subject ID in `AGENT_ADMIN_USER_IDS`. Customer authentication no longer depends on Cognito or Entra.
+The separate operations agent remains an optional owner/admin service. It is not enabled merely by deploying the customer application. Owner access can be granted either through a verified Clerk role/permission claim matching `AGENT_ADMIN_GROUP` or by placing the owner's Clerk user ID in `AGENT_ADMIN_USER_IDS`. Customer authentication no longer depends on Cognito or Entra after `AUTH_MODE=clerk` is enabled.
