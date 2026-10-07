@@ -1,14 +1,8 @@
 import type { MusicalWork } from '../types';
-import { getAccessToken } from './auth';
 import { API_BASE_URL } from './api';
 
-async function authHeaders(json = false): Promise<Record<string, string>> {
-  const token = await getAccessToken();
-  if (!token) throw new Error('Please sign in again to continue.');
-  return {
-    Authorization: `Bearer ${token}`,
-    ...(json ? { 'Content-Type': 'application/json' } : {}),
-  };
+function authHeaders(json = false): Record<string, string> {
+  return json ? { 'Content-Type': 'application/json' } : {};
 }
 
 async function apiError(response: Response, fallback: string): Promise<Error> {
@@ -21,7 +15,8 @@ async function apiError(response: Response, fallback: string): Promise<Error> {
 
 export async function listWorks(_userId: string): Promise<MusicalWork[]> {
   const response = await fetch(`${API_BASE_URL}/v1/works`, {
-    headers: await authHeaders(),
+    credentials: 'same-origin',
+    headers: authHeaders(),
   });
   if (!response.ok) throw await apiError(response, 'Could not load registered works.');
   const payload = await response.json();
@@ -33,7 +28,8 @@ export async function createWork(_userId: string, work: MusicalWork, file?: File
 
   const uploadResponse = await fetch(`${API_BASE_URL}/v1/uploads`, {
     method: 'POST',
-    headers: await authHeaders(true),
+    credentials: 'same-origin',
+    headers: authHeaders(true),
     body: JSON.stringify({
       fileHash: work.fileHash,
       fileName: work.fileName,
@@ -53,14 +49,16 @@ export async function createWork(_userId: string, work: MusicalWork, file?: File
 
   const completeResponse = await fetch(`${API_BASE_URL}/v1/uploads/${encodeURIComponent(upload.uploadId)}/complete`, {
     method: 'POST',
-    headers: await authHeaders(true),
+    credentials: 'same-origin',
+    headers: authHeaders(true),
     body: '{}',
   });
   if (!completeResponse.ok) throw await apiError(completeResponse, 'The uploaded audio could not be verified.');
 
   const workResponse = await fetch(`${API_BASE_URL}/v1/works`, {
     method: 'POST',
-    headers: await authHeaders(true),
+    credentials: 'same-origin',
+    headers: authHeaders(true),
     body: JSON.stringify({
       id: work.id,
       uploadId: upload.uploadId,
@@ -85,14 +83,16 @@ export async function createWork(_userId: string, work: MusicalWork, file?: File
 export async function removeWork(_userId: string, workId: string): Promise<void> {
   const response = await fetch(`${API_BASE_URL}/v1/works/${encodeURIComponent(workId)}`, {
     method: 'DELETE',
-    headers: await authHeaders(),
+    credentials: 'same-origin',
+    headers: authHeaders(),
   });
   if (!response.ok && response.status !== 404) throw await apiError(response, 'Could not delete this work.');
 }
 
 export async function getWorkAudioUrl(workId: string): Promise<string> {
   const response = await fetch(`${API_BASE_URL}/v1/works/${encodeURIComponent(workId)}/audio`, {
-    headers: await authHeaders(),
+    credentials: 'same-origin',
+    headers: authHeaders(),
   });
   if (!response.ok) throw await apiError(response, 'Could not create download link.');
   const payload = await response.json();
