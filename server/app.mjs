@@ -219,6 +219,10 @@ export function createApp({
     response.json({ status: 'ok' });
   });
 
+  app.get('/v1/auth/config', (_request, response) => {
+    response.json({ provider: config.authProvider });
+  });
+
   app.get('/health/ready', asyncRoute(async (_request, response) => {
     await database.query('SELECT 1');
     response.json({ status: 'ready' });
