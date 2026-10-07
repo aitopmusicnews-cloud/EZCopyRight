@@ -1,4 +1,5 @@
 import { API_BASE_URL } from './api';
+import { signIn } from './auth';
 
 export interface BillingStatus {
   configured: boolean;
@@ -29,7 +30,8 @@ async function apiRequest<T>(
   const data = await response.json().catch(() => null);
   if (!response.ok) {
     if (response.status === 401) {
-      throw new Error('Please sign in again to continue.');
+      await signIn('/');
+      throw new Error('Your secure session expired. Sign in again to continue.');
     }
     const message = data && typeof data === 'object' && 'error' in data
       ? String((data as { error?: unknown }).error || '')
@@ -44,7 +46,7 @@ export async function getBillingStatus(): Promise<BillingStatus> {
   try {
     return await apiRequest<BillingStatus>('/v1/billing/status');
   } catch (error) {
-    if (error instanceof Error && error.message === 'Please sign in again to continue.') {
+    if (error instanceof Error && error.message === 'Your secure session expired. Sign in again to continue.') {
       return {
         configured: true,
         active: false,

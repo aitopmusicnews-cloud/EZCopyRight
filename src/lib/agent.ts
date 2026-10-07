@@ -1,4 +1,5 @@
 import { API_BASE_URL } from './api';
+import { signIn } from './auth';
 
 export interface AgentReply {
   ok: boolean;
@@ -23,7 +24,10 @@ async function agentRequest<T>(path: string, init: RequestInit = {}): Promise<T>
 
   const data = await response.json().catch(() => ({}));
   if (!response.ok) {
-    if (response.status === 401) throw new Error('Please sign out and sign back in.');
+    if (response.status === 401) {
+      await signIn('/');
+      throw new Error('Your secure session expired. Sign in again to continue.');
+    }
     if (response.status === 403) throw new Error('This account is not authorized to use the operations agent.');
     throw new Error(data?.message || data?.error || 'The operations agent request failed.');
   }

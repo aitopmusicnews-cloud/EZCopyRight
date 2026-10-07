@@ -14,6 +14,7 @@ function parseOrigins(value, environment) {
 
 function requiredProductionValues(environment) {
   const storageProvider = (environment.STORAGE_PROVIDER || (environment.AZURE_STORAGE_ACCOUNT ? 'azure' : 's3')).trim();
+  const authMode = (environment.AUTH_MODE || 'easy-auth').trim();
   const values = [
     ['DATABASE_URL', environment.DATABASE_URL],
     ['CORS_ALLOWED_ORIGINS', environment.CORS_ALLOWED_ORIGINS],
@@ -22,6 +23,13 @@ function requiredProductionValues(environment) {
     ['STRIPE_WEBHOOK_SECRET', environment.STRIPE_WEBHOOK_SECRET],
     ['STRIPE_PRICE_ID', environment.STRIPE_PRICE_ID],
   ];
+
+  if (authMode === 'clerk') {
+    values.push(
+      ['CLERK_PUBLISHABLE_KEY', environment.CLERK_PUBLISHABLE_KEY],
+      ['CLERK_FRONTEND_API', environment.CLERK_FRONTEND_API],
+    );
+  }
 
   if (storageProvider === 'azure') {
     values.push(
@@ -55,6 +63,9 @@ export function loadConfig(environment = process.env) {
   const databaseUrl = environment.DATABASE_URL?.trim() || '';
   const storageProvider = (environment.STORAGE_PROVIDER || (environment.AZURE_STORAGE_ACCOUNT ? 'azure' : 's3')).trim();
   const awsRegion = environment.AWS_REGION?.trim() || 'us-west-2';
+  const appBaseUrl = (environment.APP_BASE_URL || 'http://localhost:5173').trim().replace(/\/$/, '');
+  const authMode = (environment.AUTH_MODE || 'easy-auth').trim();
+  const clerkFrontendApi = (environment.CLERK_FRONTEND_API || '').trim().replace(/\/$/, '');
 
   return {
     nodeEnvironment,
@@ -72,12 +83,17 @@ export function loadConfig(environment = process.env) {
     azureStorageContainer: environment.AZURE_STORAGE_CONTAINER?.trim() || 'private-audio',
     azureStorageAccountKey: environment.AZURE_STORAGE_ACCOUNT_KEY?.trim() || '',
     maxUploadBytes: Number.parseInt(environment.MAX_UPLOAD_BYTES || '536870912', 10),
-    appBaseUrl: (environment.APP_BASE_URL || 'http://localhost:5173').trim().replace(/\/$/, ''),
+    appBaseUrl,
     stripeSecretKey: environment.STRIPE_SECRET_KEY?.trim() || '',
     stripeWebhookSecret: environment.STRIPE_WEBHOOK_SECRET?.trim() || '',
     stripePriceId: environment.STRIPE_PRICE_ID?.trim() || '',
     monthlyRegistrationLimit: Number.parseInt(environment.MONTHLY_REGISTRATION_LIMIT || '5', 10),
+    authMode,
     authProvider: environment.AUTH_PROVIDER?.trim() || 'ezid',
+    clerkPublishableKey: environment.CLERK_PUBLISHABLE_KEY?.trim() || '',
+    clerkFrontendApi,
+    clerkJwksUrl: (environment.CLERK_JWKS_URL || (clerkFrontendApi ? `${clerkFrontendApi}/.well-known/jwks.json` : '')).trim(),
+    clerkAuthorizedParties: parseList(environment.CLERK_AUTHORIZED_PARTIES || appBaseUrl),
     agentFunctionName: environment.AGENT_FUNCTION_NAME?.trim() || 'ezcopyright-agent-brain',
     agentAdminGroup: environment.AGENT_ADMIN_GROUP?.trim() || 'ezcopyright-admin',
     agentAdminUserIds: parseList(environment.AGENT_ADMIN_USER_IDS || ''),

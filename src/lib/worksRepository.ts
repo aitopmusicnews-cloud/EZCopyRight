@@ -1,5 +1,6 @@
 import type { MusicalWork } from '../types';
 import { API_BASE_URL } from './api';
+import { signIn } from './auth';
 
 function authHeaders(json = false): Record<string, string> {
   return json ? { 'Content-Type': 'application/json' } : {};
@@ -7,7 +8,10 @@ function authHeaders(json = false): Record<string, string> {
 
 async function apiError(response: Response, fallback: string): Promise<Error> {
   const payload = await response.json().catch(() => null);
-  if (response.status === 401) return new Error('Please sign in again to continue.');
+  if (response.status === 401) {
+    await signIn('/');
+    return new Error('Your secure session expired. Sign in again to continue.');
+  }
   if (response.status === 402) return new Error('An active subscription is required to register works.');
   if (response.status === 429) return new Error('Your monthly registration limit has been reached.');
   return new Error(payload?.message || payload?.error || fallback);

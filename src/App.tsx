@@ -202,7 +202,9 @@ export default function App() {
   const beginAuth = (target: 'register' | 'dashboard', afterAuth?: 'checkout') => {
     sessionStorage.setItem(AUTH_TARGET_KEY, target);
     if (afterAuth) sessionStorage.setItem(AFTER_AUTH_KEY, afterAuth);
-    void signIn('/');
+    void signIn('/').catch((error) => {
+      setAppError(error instanceof Error ? error.message : 'Secure sign-in could not be opened.');
+    });
   };
 
   const navigateProtected = (target: 'register' | 'dashboard') => {
