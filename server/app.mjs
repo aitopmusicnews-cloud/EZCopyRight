@@ -139,7 +139,39 @@ export function createApp({
     next();
   });
 
-  app.use(helmet({ crossOriginResourcePolicy: { policy: 'cross-origin' } }));
+  const clerkOrigin = config.clerkFrontendApi || '';
+  const clerkCspSources = clerkOrigin ? [clerkOrigin] : [];
+
+  app.use(helmet({
+    crossOriginResourcePolicy: { policy: 'cross-origin' },
+    contentSecurityPolicy: {
+      directives: {
+        defaultSrc: ["'self'"],
+        scriptSrc: [
+          "'self'",
+          ...clerkCspSources,
+          'https://challenges.cloudflare.com',
+          'https://*.protect.clerk.com',
+        ],
+        connectSrc: [
+          "'self'",
+          ...clerkCspSources,
+          'https://clerk-telemetry.com',
+          'https://*.clerk-telemetry.com',
+          'https://*.protect.clerk.com:*',
+        ],
+        imgSrc: ["'self'", 'data:', 'https://img.clerk.com'],
+        styleSrc: ["'self'", "'unsafe-inline'"],
+        workerSrc: ["'self'", 'blob:'],
+        frameSrc: [
+          "'self'",
+          'https://challenges.cloudflare.com',
+          'https://*.protect.clerk.com',
+        ],
+        formAction: ["'self'"],
+      },
+    },
+  }));
   app.use(cors({
     credentials: false,
     methods: ['GET', 'POST', 'DELETE', 'OPTIONS'],
@@ -172,21 +204,21 @@ export function createApp({
     legacyHeaders: false,
   }));
 
-  const authenticate = (request, response, next) => {
-    const identity = getIdentity(request);
+  const authenticate = asyncRoute(async (request, response, next) => {
+    const identity = await getIdentity(request);
     if (!identity) {
       response.status(401).json({ error: 'authentication_required', requestId: request.id });
       return;
     }
     request.auth = identity;
     next();
-  };
+  });
 
-  const authenticateIfPresent = (request, response, next) => {
-    const identity = getIdentity(request);
+  const authenticateIfPresent = asyncRoute(async (request, response, next) => {
+    const identity = await getIdentity(request);
     if (identity) request.auth = identity;
     next();
-  };
+  });
 
   const writeLimiter = rateLimit({
     windowMs: 15 * 60 * 1000,
@@ -225,7 +257,15 @@ export function createApp({
   });
 
   app.get('/v1/auth/config', (_request, response) => {
-    response.json({ provider: config.authProvider });
+    if (config.authMode === 'clerk') {
+      response.json({
+        mode: 'clerk',
+        publishableKey: config.clerkPublishableKey,
+        frontendApi: config.clerkFrontendApi,
+      });
+      return;
+    }
+    response.json({ mode: 'easy-auth', provider: config.authProvider });
   });
 
   app.get('/health/ready', asyncRoute(async (_request, response) => {
