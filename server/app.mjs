@@ -196,7 +196,12 @@ export function createApp({
   });
 
   function isAgentAdmin(request) {
-    return Array.isArray(request.auth?.groups) && request.auth.groups.includes(config.agentAdminGroup);
+    const groupAllowed = Array.isArray(request.auth?.groups)
+      && request.auth.groups.includes(config.agentAdminGroup);
+    const userAllowed = Boolean(request.auth?.userId)
+      && Array.isArray(config.agentAdminUserIds)
+      && config.agentAdminUserIds.includes(request.auth.userId);
+    return groupAllowed || userAllowed;
   }
 
   const requireAgentAdmin = (request, response, next) => {
