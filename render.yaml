@@ -1,0 +1,53 @@
+services:
+  - type: web
+    name: ezcopyright
+    runtime: node
+    plan: free
+    buildCommand: npm ci --include=dev && npm run build
+    startCommand: npm run start:api
+    healthCheckPath: /health/ready
+    envVars:
+      - key: NODE_VERSION
+        value: 22.16.0
+      - key: NODE_ENV
+        value: production
+      - key: AUTH_MODE
+        value: clerk
+      - key: STORAGE_PROVIDER
+        value: supabase
+      - key: DATABASE_SCHEMA
+        value: ezcopyright
+      - key: DATABASE_SSL
+        value: "true"
+      - key: S3_BUCKET
+        value: private-audio
+      - key: MAX_UPLOAD_BYTES
+        value: "52428800"
+      - key: MONTHLY_REGISTRATION_LIMIT
+        value: "5"
+      - key: DATABASE_URL
+        sync: false
+      - key: S3_ENDPOINT
+        sync: false
+      - key: S3_REGION
+        sync: false
+      - key: S3_ACCESS_KEY_ID
+        sync: false
+      - key: S3_SECRET_ACCESS_KEY
+        sync: false
+      - key: APP_BASE_URL
+        sync: false
+      - key: CORS_ALLOWED_ORIGINS
+        sync: false
+      - key: CLERK_PUBLISHABLE_KEY
+        sync: false
+      - key: CLERK_FRONTEND_API
+        sync: false
+      - key: CLERK_AUTHORIZED_PARTIES
+        sync: false
+      - key: STRIPE_SECRET_KEY
+        sync: false
+      - key: STRIPE_WEBHOOK_SECRET
+        sync: false
+      - key: STRIPE_PRICE_ID
+        sync: false

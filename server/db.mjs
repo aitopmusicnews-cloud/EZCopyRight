@@ -110,13 +110,15 @@ CREATE INDEX IF NOT EXISTS audit_events_user_created_idx
   ON audit_events (user_id, created_at DESC);
 `;
 
-export function createDatabase({ databaseUrl, databaseSsl }) {
+export function createDatabase({ databaseUrl, databaseSsl, databaseSchema = 'public' }) {
+  if (!/^[a-z_][a-z0-9_]*$/.test(databaseSchema)) throw new Error('Invalid DATABASE_SCHEMA');
   if (!databaseUrl) {
     throw new Error('DATABASE_URL is required to start the EZ Copyright API.');
   }
 
   return new Pool({
     connectionString: databaseUrl,
+    options: `-c search_path=${databaseSchema}`,
     max: 10,
     idleTimeoutMillis: 30_000,
     connectionTimeoutMillis: 10_000,
@@ -125,5 +127,18 @@ export function createDatabase({ databaseUrl, databaseSsl }) {
 }
 
 export async function runMigrations(database) {
-  await database.query(migration);
+  const connection = await database.connect();
+  try {
+    await connection.query('BEGIN');
+    await connection.query(migration);
+    for (const table of ['works', 'file_uploads', 'billing_customers', 'stripe_events', 'policy_consents', 'audit_events']) {
+      await connection.query(`ALTER TABLE ${table} ENABLE ROW LEVEL SECURITY`);
+    }
+    await connection.query('COMMIT');
+  } catch (error) {
+    await connection.query('ROLLBACK');
+    throw error;
+  } finally {
+    connection.release();
+  }
 }

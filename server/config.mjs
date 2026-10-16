@@ -31,7 +31,12 @@ function requiredProductionValues(environment) {
     );
   }
 
-  if (storageProvider === 'azure') {
+  if (storageProvider === 'supabase') {
+    for (const name of ['S3_ENDPOINT', 'S3_REGION', 'S3_ACCESS_KEY_ID', 'S3_SECRET_ACCESS_KEY']) {
+      values.push([name, environment[name]]);
+    }
+    values.push(['S3_BUCKET', environment.S3_BUCKET]);
+  } else if (storageProvider === 'azure') {
     values.push(
       ['AZURE_STORAGE_ACCOUNT', environment.AZURE_STORAGE_ACCOUNT],
       ['AZURE_STORAGE_CONTAINER', environment.AZURE_STORAGE_CONTAINER],
@@ -47,6 +52,10 @@ function requiredProductionValues(environment) {
 export function validateEnvironment(environment = process.env) {
   const nodeEnvironment = environment.NODE_ENV?.trim() || 'development';
   if (nodeEnvironment !== 'production') return;
+
+  if (environment.STORAGE_PROVIDER === 'supabase' && environment.AUTH_MODE !== 'clerk') {
+    throw new Error('Supabase deployment requires AUTH_MODE=clerk; Azure Easy Auth is unavailable on Render.');
+  }
 
   const missing = requiredProductionValues(environment)
     .filter(([, value]) => !value?.trim())
@@ -76,6 +85,12 @@ export function loadConfig(environment = process.env) {
     allowedOrigins: parseOrigins(environment.CORS_ALLOWED_ORIGINS || '', nodeEnvironment),
     policyVersion: environment.POLICY_VERSION?.trim() || '2026-08-13',
     storageProvider,
+    awsRegion: environment.AWS_REGION?.trim() || 'us-east-1',
+    s3Region: environment.S3_REGION?.trim() || '',
+    s3Endpoint: environment.S3_ENDPOINT?.trim() || '',
+    s3AccessKeyId: environment.S3_ACCESS_KEY_ID?.trim() || '',
+    s3SecretAccessKey: environment.S3_SECRET_ACCESS_KEY?.trim() || '',
+    databaseSchema: environment.DATABASE_SCHEMA?.trim() || 'public',
     s3Bucket: environment.S3_BUCKET?.trim() || '',
     azureStorageAccount: environment.AZURE_STORAGE_ACCOUNT?.trim() || '',
     azureStorageContainer: environment.AZURE_STORAGE_CONTAINER?.trim() || 'private-audio',

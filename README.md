@@ -1,3 +1,5 @@
+> **Render + Supabase setup:** See [the deployment guide](docs/RENDER-SUPABASE.md) and `render.yaml` for the fresh installation path.
+
 # EZ Copyright by THE EZ WAY
 
 EZ Copyright creates private evidence records for original musical works with local hashing, server-side evidence data, private audio storage, and downloadable certificates.
